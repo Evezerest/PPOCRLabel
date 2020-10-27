@@ -7,7 +7,7 @@ except ImportError:
     from PyQt4.QtCore import *
 
 
-class ZoomWidget(QSpinBox):
+class ZoomWidget(QSpinBox): # 计数控件
 
     def __init__(self, value=100):
         super(ZoomWidget, self).__init__()

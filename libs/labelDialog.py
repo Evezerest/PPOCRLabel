@@ -16,9 +16,10 @@ class LabelDialog(QDialog):
     def __init__(self, text="Enter object label", parent=None, listItem=None):
         super(LabelDialog, self).__init__(parent)
 
-        self.edit = QLineEdit()
+        self.edit = QLineEdit()  # OLD
+        # self.edit = QTextEdit()
         self.edit.setText(text)
-        self.edit.setValidator(labelValidator())
+        # self.edit.setValidator(labelValidator()) # 验证有效性
         self.edit.editingFinished.connect(self.postProcess)
 
         model = QStringListModel()
@@ -58,9 +59,11 @@ class LabelDialog(QDialog):
     def postProcess(self):
         try:
             self.edit.setText(self.edit.text().trimmed())
+            # print(self.edit.text())
         except AttributeError:
             # PyQt5: AttributeError: 'str' object has no attribute 'trimmed'
             self.edit.setText(self.edit.text())
+            print(self.edit.text())
 
     def popUp(self, text='', move=True):
         self.edit.setText(text)

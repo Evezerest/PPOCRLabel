@@ -30,6 +30,7 @@ class Canvas(QWidget):
     drawingPolygon = pyqtSignal(bool)
 
     CREATE, EDIT = list(range(2))
+    _fill_drawing = False # 画阴影
 
     epsilon = 11.0
 
@@ -62,6 +63,8 @@ class Canvas(QWidget):
         self.setFocusPolicy(Qt.WheelFocus)
         self.verified = False
         self.drawSquare = False
+        self.fourpoint = True # ADD
+        self.pointnum = 0
 
         #initialisation for panning
         self.pan_initial_pos = QPoint()
@@ -104,6 +107,32 @@ class Canvas(QWidget):
     def selectedVertex(self):
         return self.hVertex is not None
 
+    # def addPointToEdge(self):
+    #     shape = self.prevhShape
+    #     index = self.prevhEdge
+    #     point = self.prevMovePoint
+    #     if shape is None or index is None or point is None:
+    #         return
+    #     shape.insertPoint(index, point)
+    #     shape.highlightVertex(index, shape.MOVE_VERTEX)
+    #     self.hShape = shape
+    #     self.hVertex = index
+    #     self.hEdge = None
+    #     self.movingShape = True
+    #
+    # def removeSelectedPoint(self):
+    #     shape = self.prevhShape
+    #     point = self.prevMovePoint
+    #     if shape is None or point is None:
+    #         return
+    #     index = shape.nearestVertex(point, self.epsilon)
+    #     shape.removePoint(index)
+    #     # shape.highlightVertex(index, shape.MOVE_VERTEX)
+    #     self.hShape = shape
+    #     self.hVertex = None
+    #     self.hEdge = None
+    #     self.movingShape = True  # Save changes
+
     def mouseMoveEvent(self, ev):
         """Update line with last point and current coordinates."""
         pos = self.transformPos(ev.pos())
@@ -116,12 +145,12 @@ class Canvas(QWidget):
 
         # Polygon drawing.
         if self.drawing():
-            self.overrideCursor(CURSOR_DRAW)
+            self.overrideCursor(CURSOR_DRAW) # ?
             if self.current:
                 # Display annotation width and height while drawing
                 currentWidth = abs(self.current[0].x() - pos.x())
                 currentHeight = abs(self.current[0].y() - pos.y())
-                self.parent().window().labelCoordinates.setText(
+                self.parent().window().labelCoordinates.setText( # 右下角显示的信息
                         'Width: %d, Height: %d / X: %d; Y: %d' % (currentWidth, currentHeight, pos.x(), pos.y()))
 
                 color = self.drawingLineColor
@@ -133,15 +162,26 @@ class Canvas(QWidget):
                     clipped_x = min(max(0, pos.x()), size.width())
                     clipped_y = min(max(0, pos.y()), size.height())
                     pos = QPointF(clipped_x, clipped_y)
-                elif len(self.current) > 1 and self.closeEnough(pos, self.current[0]):
+                elif len(self.current) > 1 and self.closeEnough(pos, self.current[0]) and not self.fourpoint:
                     # Attract line to starting point and colorise to alert the
                     # user:
                     pos = self.current[0]
                     color = self.current.line_color
                     self.overrideCursor(CURSOR_POINT)
                     self.current.highlightVertex(0, Shape.NEAR_VERTEX)
+                elif ( # ADD
+                        len(self.current) > 1
+                        and self.fourpoint
+                        and self.closeEnough(pos, self.current[0])
+                ):
+                    # Attract line to starting point and
+                    # colorise to alert the user.
+                    pos = self.current[0]
+                    self.overrideCursor(CURSOR_POINT)
+                    self.current.highlightVertex(0, Shape.NEAR_VERTEX)
 
-                if self.drawSquare:
+
+                if self.drawSquare: # 如果画正方形，线只能直着动
                     initPos = self.current[0]
                     minX = initPos.x()
                     minY = initPos.y()
@@ -149,11 +189,22 @@ class Canvas(QWidget):
                     directionX = -1 if pos.x() - minX < 0 else 1
                     directionY = -1 if pos.y() - minY < 0 else 1
                     self.line[1] = QPointF(minX + directionX * min_size, minY + directionY * min_size)
-                else:
+
+                elif self.fourpoint:
+                    # self.line[self.pointnum] = pos # OLD
+
+                    self.line[0] = self.current[-1]
                     self.line[1] = pos
 
+                else:
+                    self.line[1] = pos # pos即鼠标的当前位置
+                    # print('pos in Move Event is ', pos, self.line)
+
+                # TODO： 需要不显示方形框，在move中需要继续点击， 需要从按住拖动改成4点
+
+
                 self.line.line_color = color
-                self.prevPoint = QPointF()
+                self.prevPoint = QPointF() # ？
                 self.current.highlightClear()
             else:
                 self.prevPoint = pos
@@ -231,9 +282,34 @@ class Canvas(QWidget):
         pos = self.transformPos(ev.pos())
 
         if ev.button() == Qt.LeftButton:
-            if self.drawing():
-                self.handleDrawing(pos)
-            else:
+            if self.drawing(): # 在绘画状态
+                # self.handleDrawing(pos) # OLD
+
+                # 下面这部分就相当于handleDrawing
+                if self.current and self.fourpoint: # ADD IF
+                    # Add point to existing shape.
+                    print('Adding points in mousePressEvent is ', self.line[1])
+                    self.current.addPoint(self.line[1])
+                    self.line[0] = self.current[-1]
+                    if self.current.isClosed(): # 跳不进来
+                        print('1111')
+                        self.finalise()
+                elif not self.outOfPixmap(pos):
+                    # Create new shape.
+                    self.current = Shape()# self.current = Shape(shape_type=self.createMode)
+                    self.current.addPoint(pos)
+                    # if self.createMode == "point":
+                    #     self.finalise()
+                    # else:
+                    #     if self.createMode == "circle":
+                    #         self.current.shape_type = "circle"
+                    self.line.points = [pos, pos]
+                    self.setHiding()
+                    self.drawingPolygon.emit(True)
+                    self.update()
+
+
+            else: # 在选择状态
                 selection = self.selectShapePoint(pos)
                 self.prevPoint = pos
 
@@ -242,7 +318,7 @@ class Canvas(QWidget):
                     QApplication.setOverrideCursor(QCursor(Qt.OpenHandCursor))
                     self.pan_initial_pos = pos
 
-        elif ev.button() == Qt.RightButton and self.editing():
+        elif ev.button() == Qt.RightButton and self.editing(): # 右键编辑模式
             self.selectShapePoint(pos)
             self.prevPoint = pos
         self.update()
@@ -256,18 +332,30 @@ class Canvas(QWidget):
                 # Cancel the move by deleting the shadow copy.
                 self.selectedShapeCopy = None
                 self.repaint()
-        elif ev.button() == Qt.LeftButton and self.selectedShape:
+        elif ev.button() == Qt.LeftButton and self.selectedShape: # OLD
             if self.selectedVertex():
-                self.overrideCursor(CURSOR_POINT)
+                self.overrideCursor(CURSOR_POINT) # 不同的鼠标样式
             else:
                 self.overrideCursor(CURSOR_GRAB)
-        elif ev.button() == Qt.LeftButton:
+
+        # elif ev.button() == Qt.LeftButton and self.fourpoint:  # ADD 4点模式
+        #     pos = self.transformPos(ev.pos())
+        #     self.pointnum += 1  # 释放了最后一个点
+        #     if self.drawing():
+        #         self.handleDrawing(pos)
+        #     # else:
+        #     # # pan
+        #     #     QApplication.restoreOverrideCursor()  # ?
+        #     self.update()
+
+        elif ev.button() == Qt.LeftButton and not self.fourpoint: #如果释放了就调用  原来的部分
             pos = self.transformPos(ev.pos())
             if self.drawing():
-                self.handleDrawing(pos)
+                self.handleDrawing(pos) # 将释放的点传入
             else:
                 #pan
-                QApplication.restoreOverrideCursor()
+                QApplication.restoreOverrideCursor() # ?
+
 
     def endMove(self, copy=False):
         assert self.selectedShape and self.selectedShapeCopy
@@ -293,17 +381,30 @@ class Canvas(QWidget):
 
     def handleDrawing(self, pos):
         if self.current and self.current.reachMaxPoints() is False:
-            initPos = self.current[0]
-            minX = initPos.x()
-            minY = initPos.y()
-            targetPos = self.line[1]
-            maxX = targetPos.x()
-            maxY = targetPos.y()
-            self.current.addPoint(QPointF(maxX, minY))
-            self.current.addPoint(targetPos)
-            self.current.addPoint(QPointF(minX, maxY))
-            self.finalise()
+            if self.fourpoint:
+                targetPos = self.line[self.pointnum]
+                self.current.addPoint(targetPos)
+                print('current points in handleDrawing is ', self.line[self.pointnum])
+                self.update()
+                if self.pointnum == 3:  # 点选完
+                    print('xuanwanle')
+                    self.finalise()
+
+            else: # 按住送掉后跳到这里
+                initPos = self.current[0]
+                print('initPos', self.current[0])  # 画完之后
+                minX = initPos.x()
+                minY = initPos.y()
+                targetPos = self.line[1]
+                maxX = targetPos.x()
+                maxY = targetPos.y()
+                self.current.addPoint(QPointF(maxX, minY)) # 其他三个点
+                self.current.addPoint(targetPos)
+                self.current.addPoint(QPointF(minX, maxY))
+                self.finalise()
+
         elif not self.outOfPixmap(pos):
+            print('release') # 刚按下
             self.current = Shape()
             self.current.addPoint(pos)
             self.line.points = [pos, pos]
@@ -321,7 +422,8 @@ class Canvas(QWidget):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
         if self.canCloseShape() and len(self.current) > 3:
-            self.current.popPoint()
+            if not self.fourpoint:# 双击之后将倒数第二个点弹出了,没有增加新的点
+                self.current.popPoint() # 原来是有的
             self.finalise()
 
     def selectShape(self, shape):
@@ -463,7 +565,7 @@ class Canvas(QWidget):
         if not self.boundedMoveShape(shape, point - offset):
             self.boundedMoveShape(shape, point + offset)
 
-    def paintEvent(self, event):
+    def paintEvent(self, event): # repaint到这里
         if not self.pixmap:
             return super(Canvas, self).paintEvent(event)
 
@@ -489,7 +591,8 @@ class Canvas(QWidget):
             self.selectedShapeCopy.paint(p)
 
         # Paint rect
-        if self.current is not None and len(self.line) == 2:
+        if self.current is not None and len(self.line) == 2 and not self.fourpoint:
+            print('Drawing rect') # 在拉的过程中一直是2， 所以一直显示框
             leftTop = self.line[0]
             rightBottom = self.line[1]
             rectWidth = rightBottom.x() - leftTop.x()
@@ -499,10 +602,37 @@ class Canvas(QWidget):
             p.setBrush(brush)
             p.drawRect(leftTop.x(), leftTop.y(), rectWidth, rectHeight)
 
+        # #TODO: 4 points
+        # if self.current is not None and len(self.line) > 0 and self.fourpoint:
+        #     print('Drawing 4 points and the last point is',self.line[self.pointnum])
+        #     # leftTop = self.line[0]
+        #     # rightBottom = self.line[1]
+        #     # rectWidth = rightBottom.x() - leftTop.x()
+        #     # rectHeight = rightBottom.y() - leftTop.y()
+        #     p.setPen(self.drawingRectColor)
+        #     # brush = QBrush(Qt.BDiagPattern)
+        #     # p.setBrush(brush)
+        #     # p.drawRect(leftTop.x(), leftTop.y(), rectWidth, rectHeight)
+        #     p.drawLine(self.line[self.pointnum-1], self.line[self.pointnum])
+
+        # ADD：
+        if (
+                self.fillDrawing()
+                and self.fourpoint
+                and self.current is not None
+                and len(self.current.points) >= 2
+        ):
+            print('paint event')
+            drawing_shape = self.current.copy()
+            drawing_shape.addPoint(self.line[1])
+            drawing_shape.fill = True
+            drawing_shape.paint(p)
+
+        # 点击之后的鼠标移动，显示横竖两条线
         if self.drawing() and not self.prevPoint.isNull() and not self.outOfPixmap(self.prevPoint):
             p.setPen(QColor(0, 0, 0))
-            p.drawLine(self.prevPoint.x(), 0, self.prevPoint.x(), self.pixmap.height())
-            p.drawLine(0, self.prevPoint.y(), self.pixmap.width(), self.prevPoint.y())
+            p.drawLine(self.prevPoint.x(), 0, self.prevPoint.x(), self.pixmap.height()) # 画了个高
+            p.drawLine(0, self.prevPoint.y(), self.pixmap.width(), self.prevPoint.y()) # 画了个宽
 
         self.setAutoFillBackground(True)
         if self.verified:
@@ -515,6 +645,9 @@ class Canvas(QWidget):
             self.setPalette(pal)
 
         p.end()
+
+    def fillDrawing(self):
+        return self._fill_drawing
 
     def transformPos(self, point):
         """Convert from widget-logical coordinates to painter-logical coordinates."""
@@ -536,6 +669,7 @@ class Canvas(QWidget):
     def finalise(self):
         assert self.current
         if self.current.points[0] == self.current.points[-1]:
+            print('finalse')
             self.current = None
             self.drawingPolygon.emit(False)
             self.update()
@@ -668,7 +802,7 @@ class Canvas(QWidget):
     def loadPixmap(self, pixmap):
         self.pixmap = pixmap
         self.shapes = []
-        self.repaint()
+        self.repaint() # 这函数在哪
 
     def loadShapes(self, shapes):
         self.shapes = list(shapes)
@@ -701,4 +835,4 @@ class Canvas(QWidget):
         self.update()
 
     def setDrawingShapeToSquare(self, status):
-        self.drawSquare = status
+        self.drawSquare = status # 状态 只限制移动方向
