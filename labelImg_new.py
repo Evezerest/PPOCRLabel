@@ -5,6 +5,7 @@ import argparse
 import codecs
 import distutils.spawn
 import os.path
+import os
 import platform
 import re
 import sys
@@ -14,8 +15,13 @@ import piexif
 import ast
 from functools import partial
 from collections import defaultdict
+# 整个项目放在PaddleOCR/tools目录下
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(__dir__)
+sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
 
-from paddleocr import PaddleOCR, draw_ocr
+# from paddleocr import PaddleOCR, draw_ocr
+from paddleocr import PaddleOCR
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
@@ -53,7 +59,7 @@ from libs.yolo_io import YoloReader
 from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-
+# from libs.aliocr_demo import demo
 
 __appname__ = 'labelImg'
 
@@ -1092,17 +1098,17 @@ class MainWindow(QMainWindow, WindowMixin):
         # Keypoints 变为points 然后几个坐标放一起
 
         shapes = []
-        # if self.model == 'ali':
-        #     for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
-        #         for k in box.keys(): # each box
-        #             if k == "keypoints":
-        #                 point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
-        #             elif k =='word':
-        #                 word = box[k]
-        #         trans_dic = {"label": word, "points": point, 'difficult':False}
-        #         shapes.append(trans_dic)
+        if self.model == 'ali':
+            for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
+                for k in box.keys(): # each box
+                    if k == "keypoints":
+                        point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
+                    elif k =='word':
+                        word = box[k]
+                trans_dic = {"label": word, "points": point, 'difficult':False}
+                shapes.append(trans_dic)
 
-        if self.model == 'paddle':
+        elif self.model == 'paddle':
             for box in self.result_dic:
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
@@ -1683,23 +1689,23 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.setClean()
                 self.statusBar().showMessage('Saved to  %s' % annotationFilePath)
                 self.statusBar().show()
-                # 删除之前的项 放入新的项？
-                currIndex = self.mImgList.index(self.filePath)
-                item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
-                # item = QListWidgetItem(self.mImgList[currIndex])
-                # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
-                print('infor in _saveFile are',currIndex, self.mImgList[currIndex])
+                # # 删除之前的项 放入新的项？
+                # currIndex = self.mImgList.index(self.filePath)
+                # item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
+                # # item = QListWidgetItem(self.mImgList[currIndex])
+                # # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
+                # print('infor in _saveFile are',currIndex, self.mImgList[currIndex])
 
-                # 直接改变，找到当前item
-                # item_pre = self.fileListWidget.currentItem()
-                item_prou = self.fileListWidget.item(currIndex) # 之前项
-                # self.fileListWidget.removeItemWidget(self.fileListWidget.row(item_pre)) # 删不掉
-                self.fileListWidget.takeItem(self.fileListWidget.row(item_prou)) # 使用take 删除
-                print(item_prou)
-                print('self.filePath is ', self.filePath)
-                # self.fileListWidget.currentItemChanged(item, item_pre) # 用了就崩溃
+                # # 直接改变，找到当前item
+                # # item_pre = self.fileListWidget.currentItem()
+                # item_prou = self.fileListWidget.item(currIndex) # 之前项
+                # # self.fileListWidget.removeItemWidget(self.fileListWidget.row(item_pre)) # 删不掉
+                # self.fileListWidget.takeItem(self.fileListWidget.row(item_prou)) # 使用take 删除
+                # print(item_prou)
+                # print('self.filePath is ', self.filePath)
+                # # self.fileListWidget.currentItemChanged(item, item_pre) # 用了就崩溃
 
-                self.fileListWidget.insertItem(int(currIndex), item)
+                # self.fileListWidget.insertItem(int(currIndex), item)
 
         elif mode == 'Auto': # 全部自动识别下的保存
             if annotationFilePath and self.saveLabels_auto(annotationFilePath):
@@ -1893,20 +1899,19 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.model == 'paddle':
             # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_angle_cls=True,
-                            lang="ch")  # need to run only once to download and load model into memory
+            ocr = PaddleOCR(use_angle_cls=True,lang="ch")  # need to run only once to download and load model into memory
 
         for Imgpath in self.mImgList:
             print('ImgPath in autoRec is ', Imgpath)
 
             # 模型选择
-            # if self.model == 'ali':
-            #     # 对数据处理，获得标签
-            #     result = demo(Imgpath)
-            #     # 阿里云部分
-            #     self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
+            if self.model == 'ali':
+                # 对数据处理，获得标签
+                result = demo(Imgpath)
+                # 阿里云部分
+                self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
 
-            if self.model == 'paddle':
+            elif self.model == 'paddle':
                 self.result_dic = ocr.ocr(Imgpath, cls=True)
 
             # 结果保存
@@ -1924,7 +1929,8 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 针对单张图片
         # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+        # ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+        ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,det=False,lang="ch")
         # self.Path是否会不存在？
 
         # 读入当前图片
