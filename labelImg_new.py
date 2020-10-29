@@ -15,7 +15,12 @@ import ast
 from functools import partial
 from collections import defaultdict
 
-from paddleocr import PaddleOCR, draw_ocr
+# 整个项目放在PaddleOCR/tools目录下
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(__dir__)
+sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
+
+from paddleocr import PaddleOCR
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
@@ -1893,7 +1898,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.model == 'paddle':
             # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_angle_cls=True,
+            ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,
                             lang="ch")  # need to run only once to download and load model into memory
 
         for Imgpath in self.mImgList:
@@ -1924,7 +1929,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 针对单张图片
         # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+        ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,det=False,lang="ch")
         # self.Path是否会不存在？
 
         # 读入当前图片
