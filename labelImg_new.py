@@ -53,7 +53,7 @@ from libs.yolo_io import YoloReader
 from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-from libs.aliocr_demo import demo
+
 
 __appname__ = 'labelImg'
 
@@ -1092,17 +1092,17 @@ class MainWindow(QMainWindow, WindowMixin):
         # Keypoints 变为points 然后几个坐标放一起
 
         shapes = []
-        if self.model == 'ali':
-            for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
-                for k in box.keys(): # each box
-                    if k == "keypoints":
-                        point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
-                    elif k =='word':
-                        word = box[k]
-                trans_dic = {"label": word, "points": point, 'difficult':False}
-                shapes.append(trans_dic)
+        # if self.model == 'ali':
+        #     for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
+        #         for k in box.keys(): # each box
+        #             if k == "keypoints":
+        #                 point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
+        #             elif k =='word':
+        #                 word = box[k]
+        #         trans_dic = {"label": word, "points": point, 'difficult':False}
+        #         shapes.append(trans_dic)
 
-        elif self.model == 'paddle':
+        if self.model == 'paddle':
             for box in self.result_dic:
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
@@ -1900,13 +1900,13 @@ class MainWindow(QMainWindow, WindowMixin):
             print('ImgPath in autoRec is ', Imgpath)
 
             # 模型选择
-            if self.model == 'ali':
-                # 对数据处理，获得标签
-                result = demo(Imgpath)
-                # 阿里云部分
-                self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
+            # if self.model == 'ali':
+            #     # 对数据处理，获得标签
+            #     result = demo(Imgpath)
+            #     # 阿里云部分
+            #     self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
 
-            elif self.model == 'paddle':
+            if self.model == 'paddle':
                 self.result_dic = ocr.ocr(Imgpath, cls=True)
 
             # 结果保存
