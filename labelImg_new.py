@@ -1946,7 +1946,6 @@ class MainWindow(QMainWindow, WindowMixin):
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
-                print(shape.label)
                 box = [(int(p.x()), int(p.y())) for p in shape.points]
                 # print(box,box[0][1],box[2][1], box[0][0],box[2][0])
                 assert len(box) == 4
@@ -1964,12 +1963,11 @@ class MainWindow(QMainWindow, WindowMixin):
                     print('result in reRec is ', result)
 
                     self.result_dic.append(result)
-                # 增加一个判断条件，检查重识别label与原label是否相同
-                print(result[1][0])
-                if result[1][0] == shape.label:
-                    print('label no change')
-                else:
-                    rec_flag += 1
+                  # 增加一个判断条件，检查重识别label与原label是否相同
+                    if result[1][0] == shape.label:
+                        print('label no change')
+                    else:
+                        rec_flag += 1
 
             # 将图片结果全部识别后再保存
             if len(self.result_dic) > 0 and rec_flag > 0:
@@ -1977,11 +1975,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
                 self.saveFile(mode='Auto')
-            elif rec_flag == 0:
-                print('not any change!')
+            elif len(self.result_dic)==len(self.canvas.shapes) and rec_flag == 0:
                 QMessageBox.information(self, "Information", "Not any change!")
             else:
-                print('Can not recgonition in ', Imgpath)
+                print('Can not recgonition in ', self.filePath)
 
         else:
             print('Draw a box!')
