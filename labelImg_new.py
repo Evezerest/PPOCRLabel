@@ -1204,7 +1204,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Add Chris
         self.diffcButton.setChecked(False)
         if text is not None:
-            self.prevLabelText = text
+            # 不显示上一个label
+            self.prevLabelText = ''
             generate_color = generateColorByText(text)
             shape = self.canvas.setLastLabel(text, generate_color, generate_color)
             self.addLabel(shape)
@@ -1215,8 +1216,9 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.actions.editMode.setEnabled(True)
             self.setDirty()
 
-            if text not in self.labelHist:
-                self.labelHist.append(text)
+            # 不显示历史标注列表
+            # if text not in self.labelHist:
+            #     self.labelHist.append(text)
         else:
             # self.canvas.undoLastLine()
             self.canvas.resetAllLines()
@@ -1913,6 +1915,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
             if self.model == 'paddle':
                 self.result_dic = ocr.ocr(Imgpath, cls=True)
+                print(self.result_dic)
 
             # 结果保存
             if self.result_dic is None or len(self.result_dic) == 0:
@@ -1941,27 +1944,42 @@ class MainWindow(QMainWindow, WindowMixin):
 
         if self.canvas.shapes:
             self.result_dic = []
+            rec_flag = 0
             for shape in self.canvas.shapes:
+                print(shape.label)
                 box = [(int(p.x()), int(p.y())) for p in shape.points]
                 # print(box,box[0][1],box[2][1], box[0][0],box[2][0])
                 assert len(box) == 4
                 # crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]] # y0 y1,x0 x1
                 crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
                 # 四点框还需要补全
+                # JPG不支持透明度，丢弃Alpha色彩空间
+                crop_img=crop_img.convert('RGB')
                 crop_img.save('./crop_img_tmp.jpg')
                 result = ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]]
-                # 再将格式改回，增加box
-                result.insert(0,box)
-                print('result in reRec is ', result)
+                # 增加一个判断条件，处理空框标注残留问题
+                if result[0][0] is not '':
+                    # 再将格式改回，增加box
+                    result.insert(0,box)
+                    print('result in reRec is ', result)
 
-                self.result_dic.append(result)
+                    self.result_dic.append(result)
+                # 增加一个判断条件，检查重识别label与原label是否相同
+                print(result[1][0])
+                if result[1][0] == shape.label:
+                    print('label no change')
+                else:
+                    rec_flag += 1
 
             # 将图片结果全部识别后再保存
-            if len(self.result_dic) > 0:
+            if len(self.result_dic) > 0 and rec_flag > 0:
                 # self.filePath 存在
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
                 self.saveFile(mode='Auto')
+            elif rec_flag == 0:
+                print('not any change!')
+                QMessageBox.information(self, "Information", "Not any change!")
             else:
                 print('Can not recgonition in ', Imgpath)
 
