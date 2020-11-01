@@ -125,7 +125,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.shapesToItems = {}
         self.itemsToShapesbox = {}
         self.shapesToItemsbox = {}
-        self.prevLabelText = ''
+        self.prevLabelText = '待识别'
         self.model = 'paddle' # ADD
 
 
@@ -1205,7 +1205,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.diffcButton.setChecked(False)
         if text is not None:
             # 不显示上一个label
-            self.prevLabelText = ''
+            self.prevLabelText = '待识别'
             generate_color = generateColorByText(text)
             shape = self.canvas.setLastLabel(text, generate_color, generate_color)
             self.addLabel(shape)
