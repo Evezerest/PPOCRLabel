@@ -2020,11 +2020,11 @@ class MainWindow(QMainWindow, WindowMixin):
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
                 # 再将格式改回，增加box
-                result.insert(0,box)
-                print('result in reRec is ', result)
+                    result.insert(0,box)
+                    print('result in reRec is ', result)
 
-                self.result_dic.append(result)
-                # 增加一个判断条件，检查重识别label与原label是否相同
+                    self.result_dic.append(result)
+                    # 增加一个判断条件，检查重识别label与原label是否相同
                     if result[1][0] == shape.label:
                         print('label no change')
                     else:
