@@ -15,7 +15,12 @@ import ast
 from functools import partial
 from collections import defaultdict
 
-from paddleocr import PaddleOCR, draw_ocr
+# 整个项目放在PaddleOCR/tools目录下
+__dir__ = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(__dir__)
+sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
+
+from paddleocr import PaddleOCR
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
@@ -53,7 +58,7 @@ from libs.yolo_io import YoloReader
 from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
-from libs.aliocr_demo import demo
+
 
 __appname__ = 'labelImg'
 
@@ -120,7 +125,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.shapesToItems = {}
         self.itemsToShapesbox = {}
         self.shapesToItemsbox = {}
-        self.prevLabelText = ''
+        self.prevLabelText = '待识别'
         self.model = 'paddle' # ADD
 
         filelistLayout = QVBoxLayout()
@@ -506,9 +511,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
 
 
-        # labels = self.dock.toggleViewAction()
-        # labels.setText(getStr('showHide'))
-        # labels.setShortcut('Ctrl+Shift+L')
+        labels = self.dock.toggleViewAction()
+        labels.setText(getStr('showHide'))
+        labels.setShortcut('Ctrl+Shift+L')
 
         # Label list context menu.
         labelMenu = QMenu()
@@ -578,7 +583,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
-            None,
+            labels, None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
             fitWindow, fitWidth))
@@ -1144,17 +1149,17 @@ class MainWindow(QMainWindow, WindowMixin):
         # Keypoints 变为points 然后几个坐标放一起
 
         shapes = []
-        if self.model == 'ali':
-            for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
-                for k in box.keys(): # each box
-                    if k == "keypoints":
-                        point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
-                    elif k =='word':
-                        word = box[k]
-                trans_dic = {"label": word, "points": point, 'difficult':False}
-                shapes.append(trans_dic)
+        # if self.model == 'ali':
+        #     for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
+        #         for k in box.keys(): # each box
+        #             if k == "keypoints":
+        #                 point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
+        #             elif k =='word':
+        #                 word = box[k]
+        #         trans_dic = {"label": word, "points": point, 'difficult':False}
+        #         shapes.append(trans_dic)
 
-        elif self.model == 'paddle':
+        if self.model == 'paddle':
             for box in self.result_dic:
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
@@ -1183,6 +1188,7 @@ class MainWindow(QMainWindow, WindowMixin):
         except LabelFileError as e:
             self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
             return False
+
 
     def copySelectedShape(self):
         self.addLabel(self.canvas.copySelectedShape())
@@ -1250,7 +1256,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Add Chris
         self.diffcButton.setChecked(False)
         if text is not None:
-            self.prevLabelText = text
+            # 不显示上一个label
+            self.prevLabelText = '待识别'
             generate_color = generateColorByText(text)
             shape = self.canvas.setLastLabel(text, generate_color, generate_color)
             self.addLabel(shape)
@@ -1261,8 +1268,9 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.actions.editMode.setEnabled(True)
             self.setDirty()
 
-            if text not in self.labelHist:
-                self.labelHist.append(text)
+            # 不显示历史标注列表
+            # if text not in self.labelHist:
+            #     self.labelHist.append(text)
         else:
             # self.canvas.undoLastLine()
             self.canvas.resetAllLines()
@@ -1628,15 +1636,6 @@ class MainWindow(QMainWindow, WindowMixin):
         print('dirPath in importDirImages is',dirpath)
         self.additems(dirpath)
         # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
-    
-    def additems(self, dirpath):
-        # 读取和显示缩略图        
-        for file in self.mImgList:
-            pix = QPixmap(file)
-            filedir, filename = os.path.split(file)
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename)
-            item.setToolTip(filedir)
-            self.iconlist.addItem(item)
 
     def verifyImg(self, _value=False):
         # Proceding next image without dialog if having any label
@@ -1947,6 +1946,14 @@ class MainWindow(QMainWindow, WindowMixin):
     def toogleDrawSquare(self):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
 
+    def additems(self, dirpath):
+        # 读取和显示缩略图        
+        for file in self.mImgList:
+            pix = QPixmap(file)
+            filedir, filename = os.path.split(file)
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename)
+            item.setToolTip(filedir)
+            self.iconlist.addItem(item)
     def autoRecognition(self):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
@@ -1954,21 +1961,22 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.model == 'paddle':
             # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_angle_cls=True,
+            ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,
                             lang="ch")  # need to run only once to download and load model into memory
 
         for Imgpath in self.mImgList:
             print('ImgPath in autoRec is ', Imgpath)
 
             # 模型选择
-            if self.model == 'ali':
-                # 对数据处理，获得标签
-                result = demo(Imgpath)
-                # 阿里云部分
-                self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
+            # if self.model == 'ali':
+            #     # 对数据处理，获得标签
+            #     result = demo(Imgpath)
+            #     # 阿里云部分
+            #     self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
 
-            elif self.model == 'paddle':
+            if self.model == 'paddle':
                 self.result_dic = ocr.ocr(Imgpath, cls=True)
+                print(self.result_dic)
 
             # 结果保存
             if self.result_dic is None or len(self.result_dic) == 0:
@@ -1985,7 +1993,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 针对单张图片
         # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_angle_cls=True, lang="ch")
+        ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,det=False,lang="ch")
         # self.Path是否会不存在？
 
         # 读入当前图片
@@ -1997,6 +2005,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         if self.canvas.shapes:
             self.result_dic = []
+            rec_flag = 0
             for shape in self.canvas.shapes:
                 box = [(int(p.x()), int(p.y())) for p in shape.points]
                 # print(box,box[0][1],box[2][1], box[0][0],box[2][0])
@@ -2004,22 +2013,33 @@ class MainWindow(QMainWindow, WindowMixin):
                 # crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]] # y0 y1,x0 x1
                 crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
                 # 四点框还需要补全
+                # JPG不支持透明度，丢弃Alpha色彩空间
+                crop_img=crop_img.convert('RGB')
                 crop_img.save('./crop_img_tmp.jpg')
                 result = ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]]
+                # 增加一个判断条件，处理空框标注残留问题
+                if result[0][0] is not '':
                 # 再将格式改回，增加box
                 result.insert(0,box)
                 print('result in reRec is ', result)
 
                 self.result_dic.append(result)
+                # 增加一个判断条件，检查重识别label与原label是否相同
+                    if result[1][0] == shape.label:
+                        print('label no change')
+                    else:
+                        rec_flag += 1
 
             # 将图片结果全部识别后再保存
-            if len(self.result_dic) > 0:
+            if len(self.result_dic) > 0 and rec_flag > 0:
                 # self.filePath 存在
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
                 self.saveFile(mode='Auto')
+            elif len(self.result_dic)==len(self.canvas.shapes) and rec_flag == 0:
+                QMessageBox.information(self, "Information", "Not any change!")
             else:
-                print('Can not recgonition in ', Imgpath)
+                print('Can not recgonition in ', self.filePath)
 
         else:
             print('Draw a box!')
@@ -2029,14 +2049,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autolcm(self):
         print('autolabelchoosemodel')
-
-    def annoIA(self):
-        print('annoIA')
-        
-    
-    def reLabel(self):
-        print('reLabel')
-
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
