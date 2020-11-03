@@ -135,9 +135,15 @@ class MainWindow(QMainWindow, WindowMixin):
         filelistLayout = QVBoxLayout()
         filelistLayout.setContentsMargins(0, 0, 0, 0)
         filelistLayout.addWidget(self.fileListWidget) #self.verticalLayoutWidget_2
+        
         self.AutoRecognition = QToolButton()
         self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        filelistLayout.addWidget(self.AutoRecognition)
+        autoRecLayout = QHBoxLayout()
+        autoRecLayout.setContentsMargins(0, 0, 0, 0)
+        autoRecLayout.addWidget(self.AutoRecognition)
+        autoRecContainer = QWidget()
+        autoRecContainer.setLayout(autoRecLayout)
+        filelistLayout.addWidget(autoRecContainer)
 
         fileListContainer = QWidget()
         fileListContainer.setLayout(filelistLayout)
@@ -1384,9 +1390,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 fileWidgetItem = self.fileListWidget.item(index)
                 print('unicodeFilePath is',unicodeFilePath)
                 fileWidgetItem.setSelected(True) # 设计一个选中
+
+                iconWidgetItem = self.iconlist.item(index)
+                iconWidgetItem.setSelected(True)
             else:
                 self.fileListWidget.clear()
                 self.mImgList.clear()
+                self.iconlist.clear()
+
+        # if unicodeFilePath and self.iconList.count() > 0:
+        #     if unicodeFilePath in self.mImgList:
+                
 
         if unicodeFilePath and os.path.exists(unicodeFilePath):
             if LabelFile.isLabelFile(unicodeFilePath): # 如果有label
@@ -1684,7 +1698,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if currIndex - 1 >= 0:
             filename = self.mImgList[currIndex - 1]
             if filename:
-                self.loadFile(filename)
+                self.c(filename)
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
@@ -1788,9 +1802,11 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.statusBar().show()
                 # 删除之前的项 放入新的项？
                 currIndex = self.mImgList.index(self.filePath)
-                item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
+                # item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
                 # item = QListWidgetItem(self.mImgList[currIndex])
                 # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
+                item = self.fileListWidget.item(currIndex)
+                item.setIcon(newIcon('done'))
                 print('infor in _saveFile are',currIndex, self.mImgList[currIndex])
 
                 # 直接改变，找到当前item
