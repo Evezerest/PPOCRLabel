@@ -159,19 +159,19 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Create a widget for using default label # CheckBox加入到HBoxLayout中 再加入到Qwidget中，最后到VBoxLayout中
         # 这部分以后可以删除
-        self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
-        self.useDefaultLabelCheckbox.setChecked(False)
-        self.defaultLabelTextLine = QLineEdit()
-        useDefaultLabelQHBoxLayout = QHBoxLayout()
-        useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
-        useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
-        useDefaultLabelContainer = QWidget()
-        useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
+        # self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
+        # self.useDefaultLabelCheckbox.setChecked(False)
+        # self.defaultLabelTextLine = QLineEdit()
+        # useDefaultLabelQHBoxLayout = QHBoxLayout()
+        # useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
+        # useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+        # useDefaultLabelContainer = QWidget()
+        # useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
 
         # Create a widget for edit and diffc button
-        self.diffcButton = QCheckBox(getStr('useDifficult'))
-        self.diffcButton.setChecked(False)
-        self.diffcButton.stateChanged.connect(self.btnstate)
+        # self.diffcButton = QCheckBox(getStr('useDifficult'))
+        # self.diffcButton.setChecked(False)
+        # self.diffcButton.stateChanged.connect(self.btnstate)
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -194,8 +194,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Add some of widgets to listLayout
         # listLayout.addWidget(self.newButton) # ADD
         # listLayout.addWidget(self.editButton)
-        listLayout.addWidget(self.diffcButton)
-        listLayout.addWidget(useDefaultLabelContainer)
+        #listLayout.addWidget(self.diffcButton)
+        #listLayout.addWidget(useDefaultLabelContainer)
 
 
         # Create and add combobox for showing unique labels in group 显示不同标签用的
@@ -964,7 +964,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip(),item.text())))
+        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
         if currIndex < len(self.mImgList):
             filename = self.mImgList[currIndex]
             if filename:
@@ -1393,6 +1393,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
                 iconWidgetItem = self.iconlist.item(index)
                 iconWidgetItem.setSelected(True)
+                self.iconlist.scrollToItem(iconWidgetItem)
             else:
                 self.fileListWidget.clear()
                 self.mImgList.clear()
@@ -1654,6 +1655,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.fileListWidget.addItem(item)
 
         print('dirPath in importDirImages is',dirpath)
+        self.iconlist.clear()
         self.additems(dirpath)
         # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
 
@@ -1698,7 +1700,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if currIndex - 1 >= 0:
             filename = self.mImgList[currIndex - 1]
             if filename:
-                self.c(filename)
+                self.loadFile(filename)
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
@@ -1751,6 +1753,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.fileListWidget.addItem(filename)
 
         print('opened image is',filename)
+        self.iconlist.clear()
         self.additems(None)
 
     def updateFileListIcon(self, filename):
@@ -1986,9 +1989,10 @@ class MainWindow(QMainWindow, WindowMixin):
         # 读取和显示缩略图        
         for file in self.mImgList:
             pix = QPixmap(file)
-            filedir, filename = os.path.split(file)
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename)
-            item.setToolTip(filedir)
+            _, filename = os.path.split(file)
+            filename, _ = os.path.splitext(filename)
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
+            item.setToolTip(file)
             self.iconlist.addItem(item)
 
     def autoRecognition(self):
