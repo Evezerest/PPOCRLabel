@@ -51,7 +51,7 @@ from libs.zoomWidget import ZoomWidget
 from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
 from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
-from libs.toolBar import ToolBar
+from libs.toolBar import ToolBar, ToolButton
 from libs.pascal_voc_io import PascalVocReader
 from libs.pascal_voc_io import XML_EXT
 from libs.yolo_io import YoloReader
@@ -126,16 +126,28 @@ class MainWindow(QMainWindow, WindowMixin):
         self.itemsToShapesbox = {}
         self.shapesToItemsbox = {}
         self.prevLabelText = '待识别'
-        self.model = 'paddle' # ADD
+        self.model = 'paddle' # ADD        
 
+        ################# 文件列表  ###############
+        self.fileListWidget = QListWidget()
+        self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked) # 文件被双击后
+        self.fileListWidget.setIconSize(QSize(25, 25)) # 设置控件大小
         filelistLayout = QVBoxLayout()
         filelistLayout.setContentsMargins(0, 0, 0, 0)
-        self.fileList = QListWidget()
-        self.fileList.itemDoubleClicked.connect(self.fileitemDoubleClicked)
-        filelistLayout.addWidget(self.fileList)
+        filelistLayout.addWidget(self.fileListWidget) #self.verticalLayoutWidget_2
+        
+        self.AutoRecognition = QToolButton()
+        self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        autoRecLayout = QHBoxLayout()
+        autoRecLayout.setContentsMargins(0, 0, 0, 0)
+        autoRecLayout.addWidget(self.AutoRecognition)
+        autoRecContainer = QWidget()
+        autoRecContainer.setLayout(autoRecLayout)
+        filelistLayout.addWidget(autoRecContainer)
+
         fileListContainer = QWidget()
         fileListContainer.setLayout(filelistLayout)
-        self.filedock = QDockWidget(getStr('fileList'), self)
+        self.filedock = QDockWidget(getStr('fileList'), self) # getStr方便转换
         self.filedock.setObjectName(getStr('files'))
         self.filedock.setWidget(fileListContainer)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock)
@@ -243,22 +255,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)
         # filelistLayout.addWidget(self.fileListWidget)
 
-        ################# 文件列表  ###############
-        self.fileListWidget = QListWidget()
-        self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked) # 文件被双击后
-        self.fileListWidget.setIconSize(QSize(25, 25)) # 设置控件大小
-        filelistLayout = QVBoxLayout()
-        filelistLayout.setContentsMargins(0, 0, 0, 0)
-        filelistLayout.addWidget(self.fileListWidget) #self.verticalLayoutWidget_2
-        self.AutoRecognition = QToolButton()
-        self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        filelistLayout.addWidget(self.AutoRecognition)
-
-        fileListContainer = QWidget()
-        fileListContainer.setLayout(filelistLayout)
-        self.filedock = QDockWidget(getStr('fileList'), self) # getStr方便转换
-        self.filedock.setObjectName(getStr('files'))
-        self.filedock.setWidget(fileListContainer)
+        
 
 
         self.imgsplider = QSlider(Qt.Horizontal)
@@ -287,6 +284,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.zoomWidgetValue = self.zoomWidget.value()
         
         ########## 底层缩略图 #########
+        hlayout = QHBoxLayout()
+        m = (0,0,0,0)
+        hlayout.setSpacing(0)
+        hlayout.setContentsMargins(*m)
+        self.preButton = ToolButton()
+        self.preButton.setFixedHeight(100)
+        self.preButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.iconlist = QListWidget()
         self.iconlist.setViewMode(QListView.IconMode)
         self.iconlist.setFlow(QListView.TopToBottom)
@@ -295,8 +299,14 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.setMovement(False)
         self.iconlist.setResizeMode(QListView.Adjust)
         self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
-        hlayout = QHBoxLayout()
+        self.nextButton = ToolButton()
+        self.nextButton.setFixedHeight(100)
+        self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        
+        hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
+        hlayout.addWidget(self.nextButton)
+
 
         # self.setLayout(hlayout)
 
@@ -333,8 +343,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # 设置docker所放置的区域
         self.setCentralWidget(scroll)
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
-        self.addDockWidget(Qt.LeftDockWidgetArea, self.dock)
+        #self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
+        self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
 
         # TODO：双击Label之后跳出的界面 不需要备选label，需要更改。将label的单击显示用可展开的形式
@@ -481,6 +491,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.SaveButton.setDefaultAction(save)
         self.AutoRecognition.setDefaultAction(AutoRec)
         self.reRecogButton.setDefaultAction(reRec)
+        self.preButton.setDefaultAction(openPrevImg)
+        self.nextButton.setDefaultAction(openNextImg)
 
         ############# Zoom layout ##############
         zoomLayout = QHBoxLayout()
@@ -1378,9 +1390,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 fileWidgetItem = self.fileListWidget.item(index)
                 print('unicodeFilePath is',unicodeFilePath)
                 fileWidgetItem.setSelected(True) # 设计一个选中
+
+                iconWidgetItem = self.iconlist.item(index)
+                iconWidgetItem.setSelected(True)
             else:
                 self.fileListWidget.clear()
                 self.mImgList.clear()
+                self.iconlist.clear()
+
+        # if unicodeFilePath and self.iconList.count() > 0:
+        #     if unicodeFilePath in self.mImgList:
+                
 
         if unicodeFilePath and os.path.exists(unicodeFilePath):
             if LabelFile.isLabelFile(unicodeFilePath): # 如果有label
@@ -1678,7 +1698,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if currIndex - 1 >= 0:
             filename = self.mImgList[currIndex - 1]
             if filename:
-                self.loadFile(filename)
+                self.c(filename)
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
@@ -1720,7 +1740,21 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = filename[0]
             self.loadFile(filename)
             # print('filename in openfile is ', self.filePath)
+        self.filePath = None
+        self.fileListWidget.clear()
+        self.mImgList = [filename] # 将所有文件读入mImgList中
+        self.openNextImg()
+        if self.validAnnoExist(filename) is True:
+            item = QListWidgetItem(newIcon('done'), filename)
+        else:
+            item = QListWidgetItem(newIcon('close'), filename)
+        self.fileListWidget.addItem(filename)
 
+        print('opened image is',filename)
+        self.additems(None)
+
+    def updateFileListIcon(self, filename):
+        pass
 
     def saveFile(self, _value=False, mode='Manual'):
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
@@ -1768,9 +1802,11 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.statusBar().show()
                 # 删除之前的项 放入新的项？
                 currIndex = self.mImgList.index(self.filePath)
-                item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
+                # item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
                 # item = QListWidgetItem(self.mImgList[currIndex])
                 # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
+                item = self.fileListWidget.item(currIndex)
+                item.setIcon(newIcon('done'))
                 print('infor in _saveFile are',currIndex, self.mImgList[currIndex])
 
                 # 直接改变，找到当前item
@@ -1954,6 +1990,7 @@ class MainWindow(QMainWindow, WindowMixin):
             item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename)
             item.setToolTip(filedir)
             self.iconlist.addItem(item)
+
     def autoRecognition(self):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
@@ -2019,7 +2056,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 result = ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]]
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
-                # 再将格式改回，增加box
+                    # 再将格式改回，增加box
                     result.insert(0,box)
                     print('result in reRec is ', result)
 

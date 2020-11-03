@@ -37,13 +37,13 @@ class LabelDialog(QDialog):
         bb.rejected.connect(self.reject)
         layout.addWidget(bb)
 
-        if listItem is not None and len(listItem) > 0:
-            self.listWidget = QListWidget(self)
-            for item in listItem:
-                self.listWidget.addItem(item)
-            self.listWidget.itemClicked.connect(self.listItemClick)
-            self.listWidget.itemDoubleClicked.connect(self.listItemDoubleClick)
-            layout.addWidget(self.listWidget)
+        # if listItem is not None and len(listItem) > 0:
+        #     self.listWidget = QListWidget(self)
+        #     for item in listItem:
+        #         self.listWidget.addItem(item)
+        #     self.listWidget.itemClicked.connect(self.listItemClick)
+        #     self.listWidget.itemDoubleClicked.connect(self.listItemDoubleClick)
+        #     layout.addWidget(self.listWidget)
 
         self.setLayout(layout)
 
