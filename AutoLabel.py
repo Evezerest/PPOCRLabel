@@ -159,19 +159,19 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Create a widget for using default label # CheckBox加入到HBoxLayout中 再加入到Qwidget中，最后到VBoxLayout中
         # 这部分以后可以删除
-        # self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
-        # self.useDefaultLabelCheckbox.setChecked(False)
-        # self.defaultLabelTextLine = QLineEdit()
-        # useDefaultLabelQHBoxLayout = QHBoxLayout()
-        # useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
-        # useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
-        # useDefaultLabelContainer = QWidget()
-        # useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
+        self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
+        self.useDefaultLabelCheckbox.setChecked(False)
+        self.defaultLabelTextLine = QLineEdit()
+        useDefaultLabelQHBoxLayout = QHBoxLayout()
+        useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
+        useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+        useDefaultLabelContainer = QWidget()
+        useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
 
         # Create a widget for edit and diffc button
-        # self.diffcButton = QCheckBox(getStr('useDifficult'))
-        # self.diffcButton.setChecked(False)
-        # self.diffcButton.stateChanged.connect(self.btnstate)
+        self.diffcButton = QCheckBox(getStr('useDifficult'))
+        self.diffcButton.setChecked(False)
+        self.diffcButton.stateChanged.connect(self.btnstate)
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -194,8 +194,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # Add some of widgets to listLayout
         # listLayout.addWidget(self.newButton) # ADD
         # listLayout.addWidget(self.editButton)
-        #listLayout.addWidget(self.diffcButton)
-        #listLayout.addWidget(useDefaultLabelContainer)
+        listLayout.addWidget(self.diffcButton)
+        listLayout.addWidget(useDefaultLabelContainer)
 
 
         # Create and add combobox for showing unique labels in group 显示不同标签用的
