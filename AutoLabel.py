@@ -946,14 +946,14 @@ class MainWindow(QMainWindow, WindowMixin):
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
         currIndex = self.mImgList.index(ustr(item.text()))
-        if currIndex < len(self.mImgList):
+        if currIndex < len(self.mImgList)-1:
             filename = self.mImgList[currIndex]
             if filename:
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
         currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
-        if currIndex < len(self.mImgList):
+        if currIndex < len(self.mImgList)-1:
             filename = self.mImgList[currIndex]
             if filename:
                 self.loadFile(filename)
