@@ -2047,8 +2047,6 @@ class MainWindow(QMainWindow, WindowMixin):
                 # 保存
                 self.saveFile(mode='Auto')
 
-        self.loadFile(self.filePath) # ADD
-
 
 
 
@@ -2098,7 +2096,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
                 self.setDirty()
-                self.saveFile(mode='Auto')
+                # self.saveFile(mode='Auto')
             elif len(self.result_dic)==len(self.canvas.shapes) and rec_flag == 0:
                 QMessageBox.information(self, "Information", "Not any change!")
             else:
