@@ -13,8 +13,11 @@ except ImportError:
     from PyQt4.QtCore import *
 
 
-def newIcon(icon):
-    return QIcon(':/' + icon)
+def newIcon(icon, iconSize=None):
+    if iconSize is not None:
+        return QIcon(QIcon(':/' + icon).pixmap(iconSize,iconSize))
+    else:
+        return QIcon(':/' + icon)
 
 
 def newButton(text, icon=None, slot=None):
@@ -27,11 +30,14 @@ def newButton(text, icon=None, slot=None):
 
 
 def newAction(parent, text, slot=None, shortcut=None, icon=None,
-              tip=None, checkable=False, enabled=True):
+              tip=None, checkable=False, enabled=True, iconSize=None):
     """Create a new action and assign callbacks, shortcuts, etc."""
     a = QAction(text, parent)
     if icon is not None:
-        a.setIcon(newIcon(icon))
+        if iconSize is not None:
+            a.setIcon(newIcon(icon, iconSize))
+        else:
+            a.setIcon(newIcon(icon))
     if shortcut is not None:
         if isinstance(shortcut, (list, tuple)):
             a.setShortcuts(shortcut)

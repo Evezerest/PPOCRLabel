@@ -94,7 +94,7 @@ class MainWindow(QMainWindow, WindowMixin):
         settings = self.settings
 
         # Load string bundle for i18n
-        self.stringBundle = StringBundle.getBundle()
+        self.stringBundle = StringBundle.getBundle(localeStr="zh-CN")
         getStr = lambda strId: self.stringBundle.getString(strId)
 
         # Save as Pascal voc xml
@@ -106,6 +106,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.dirname = None
         self.labelHist = []
         self.lastOpenDir = None
+        self.result_dic = []
 
         # Whether we need to save or not.
         self.dirty = False
@@ -288,8 +289,12 @@ class MainWindow(QMainWindow, WindowMixin):
         m = (0,0,0,0)
         hlayout.setSpacing(0)
         hlayout.setContentsMargins(*m)
-        self.preButton = ToolButton()
+        self.preButton = QToolButton()
         self.preButton.setFixedHeight(100)
+        self.preButton.setText("prev")
+        self.preButton.setIcon(newIcon("prev", 80))
+        self.preButton.setIconSize(QSize(80, 80))
+        self.preButton.clicked.connect(self.openPrevImg)
         self.preButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.iconlist = QListWidget()
         self.iconlist.setViewMode(QListView.IconMode)
@@ -299,10 +304,15 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.setMovement(False)
         self.iconlist.setResizeMode(QListView.Adjust)
         self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
-        self.nextButton = ToolButton()
+        self.nextButton = QToolButton()
         self.nextButton.setFixedHeight(100)
+        self.nextButton.setText("next")
+        self.nextButton.setIcon(newIcon("next", 80))
+        self.nextButton.setIconSize(QSize(80, 80))
+        self.nextButton.clicked.connect(self.openNextImg)
         self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         
+
         hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
         hlayout.addWidget(self.nextButton)
@@ -491,8 +501,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.SaveButton.setDefaultAction(save)
         self.AutoRecognition.setDefaultAction(AutoRec)
         self.reRecogButton.setDefaultAction(reRec)
-        self.preButton.setDefaultAction(openPrevImg)
-        self.nextButton.setDefaultAction(openNextImg)
+        # self.preButton.setDefaultAction(openPrevImg)
+        # self.nextButton.setDefaultAction(openNextImg)
 
         ############# Zoom layout ##############
         zoomLayout = QHBoxLayout()
@@ -810,6 +820,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.resetState()
         self.labelCoordinates.clear()
         self.comboBox.cb.clear()
+        self.result_dic = []
 
     def currentItem(self):
         items = self.labelList.selectedItems()
@@ -964,17 +975,15 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip(),item.text())))
+        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
         if currIndex < len(self.mImgList):
             filename = self.mImgList[currIndex]
             if filename:
                 self.loadFile(filename)
 
     def CanvasSizeChange(self):
-        print(self.imgsplider.value())
-        print(type(self.imgsplider.value()))
-        print(self.imgsplider.value()/10)
-        self.zoomWidget.setValue(self.zoomWidgetValue + self.imgsplider.value())
+        if len(self.mImgList) > 0:
+            self.zoomWidget.setValue(self.zoomWidgetValue + self.imgsplider.value())
 
     # Add chris
     def btnstate(self, item= None):
@@ -1122,6 +1131,14 @@ class MainWindow(QMainWindow, WindowMixin):
 
         shapes = [format_shape(shape) for shape in self.canvas.shapes] # 从canvas中读入shape 并且获得标记
         # Can add differrent annotation formats here
+
+        if self.model == 'paddle':
+            for box in self.result_dic:
+                # if len(box)==1: # 只有框
+                #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
+                trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
+                shapes.append(trans_dic)
+
         try:
             if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
                 if annotationFilePath[-4:].lower() != ".xml":
@@ -1176,6 +1193,8 @@ class MainWindow(QMainWindow, WindowMixin):
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
                 trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
+                if trans_dic["label"] is "":
+                    continue
                 shapes.append(trans_dic)
         # shapes = [format_shape(shape) for shape in self.canvas.shapes] # 从canvas中读入shape 并且获得标记
         # shapes = [format_shape(shape) for shape in self.result] # 每个都是dict
@@ -1378,10 +1397,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Make sure that filePath is a regular python string, rather than QString
         filePath = ustr(filePath)
-
         # Fix bug: An index error after select a directory when open a new file.
         unicodeFilePath = ustr(filePath) # 路径
-        unicodeFilePath = os.path.abspath(unicodeFilePath)
+        # unicodeFilePath = os.path.abspath(unicodeFilePath)
         # Tzutalin 20160906 : Add file list and dock to move faster
         # Highlight the file item
         if unicodeFilePath and self.fileListWidget.count() > 0:
@@ -1393,6 +1411,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
                 iconWidgetItem = self.iconlist.item(index)
                 iconWidgetItem.setSelected(True)
+                self.iconlist.scrollToItem(iconWidgetItem)
             else:
                 self.fileListWidget.clear()
                 self.mImgList.clear()
@@ -1654,6 +1673,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.fileListWidget.addItem(item)
 
         print('dirPath in importDirImages is',dirpath)
+        self.iconlist.clear()
         self.additems(dirpath)
         # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
 
@@ -1698,7 +1718,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if currIndex - 1 >= 0:
             filename = self.mImgList[currIndex - 1]
             if filename:
-                self.c(filename)
+                self.loadFile(filename)
 
     def openNextImg(self, _value=False):
         # Proceding prev image without dialog if having any label
@@ -1742,6 +1762,7 @@ class MainWindow(QMainWindow, WindowMixin):
             # print('filename in openfile is ', self.filePath)
         self.filePath = None
         self.fileListWidget.clear()
+        self.iconlist.clear()
         self.mImgList = [filename] # 将所有文件读入mImgList中
         self.openNextImg()
         if self.validAnnoExist(filename) is True:
@@ -1749,9 +1770,9 @@ class MainWindow(QMainWindow, WindowMixin):
         else:
             item = QListWidgetItem(newIcon('close'), filename)
         self.fileListWidget.addItem(filename)
-
-        print('opened image is',filename)
         self.additems(None)
+        print('opened image is',filename)
+        
 
     def updateFileListIcon(self, filename):
         pass
@@ -1986,9 +2007,11 @@ class MainWindow(QMainWindow, WindowMixin):
         # 读取和显示缩略图        
         for file in self.mImgList:
             pix = QPixmap(file)
-            filedir, filename = os.path.split(file)
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename)
-            item.setToolTip(filedir)
+            _, filename = os.path.split(file)
+            filename, _ = os.path.splitext(filename)
+            # item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),filename[:10])
+            item.setToolTip(file)
             self.iconlist.addItem(item)
 
     def autoRecognition(self):
@@ -2023,6 +2046,8 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.filePath = Imgpath  # 文件路径
                 # 保存
                 self.saveFile(mode='Auto')
+
+        self.loadFile(self.filePath) # ADD
 
 
 
@@ -2072,6 +2097,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 # self.filePath 存在
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
+                self.setDirty()
                 self.saveFile(mode='Auto')
             elif len(self.result_dic)==len(self.canvas.shapes) and rec_flag == 0:
                 QMessageBox.information(self, "Information", "Not any change!")
@@ -2086,6 +2112,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autolcm(self):
         print('autolabelchoosemodel')
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
