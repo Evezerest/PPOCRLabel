@@ -37,6 +37,22 @@ from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
+try:
+    from PyQt5 import QtCore, QtGui, QtWidgets
+    from PyQt5.QtGui import *
+    from PyQt5.QtCore import *
+    from PyQt5.QtWidgets import *
+except ImportError:
+    # needed for py3+qt4
+    # Ref:
+    # http://pyqt.sourceforge.net/Docs/PyQt4/incompatible_apis.html
+    # http://stackoverflow.com/questions/21217399/pyqt4-qtcore-qvariant-object-instead-of-a-string
+    if sys.version_info.major >= 3:
+        import sip
+        sip.setapi('QVariant', 2)
+    from PyQt4.QtGui import *
+    from PyQt4.QtCore import *
+
 __appname__ = 'AutoLabel'
 
 class WindowMixin(object):
@@ -84,6 +100,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelHist = []
         self.lastOpenDir = None
         self.result_dic = []
+        self.currIndex = 0
+
 
         # Whether we need to save or not.
         self.dirty = False
@@ -945,16 +963,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(item.text()))
-        if currIndex < len(self.mImgList)-1:
-            filename = self.mImgList[currIndex]
+        if self.currIndex == self.mImgList.index(ustr(item.text())):
+            pass
+        else:
+            self.currIndex = self.mImgList.index(ustr(item.text()))
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
-        if currIndex < len(self.mImgList)-1:
-            filename = self.mImgList[currIndex]
+        if self.currIndex == self.mImgList.index(ustr(os.path.join(item.toolTip()))):
+            pass
+        else:
+            self.currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
