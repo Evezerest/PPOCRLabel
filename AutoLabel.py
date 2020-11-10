@@ -2064,7 +2064,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # 读取 self.canvas.shapes 中的信息 然后再接一个识别模型
         # print([[(p.x(), p.y()) for p in shape.points] for shape in self.canvas.shapes]) # 得到边界框位置
 
-         if self.canvas.shapes:
+        if self.canvas.shapes:
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
