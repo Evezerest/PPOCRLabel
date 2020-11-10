@@ -2,18 +2,15 @@
 # -*- coding: utf-8 -*-
 # 准备只将原来的界面布局改掉，但发现比较困难
 import argparse
+import ast
 import codecs
-import distutils.spawn
 import os.path
 import platform
-import re
-import sys
 import subprocess
-from PIL import Image
-import piexif
-import ast
+import sys
 from functools import partial
-from collections import defaultdict
+
+from PIL import Image
 
 # 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -21,6 +18,24 @@ sys.path.append(__dir__)
 sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
 
 from paddleocr import PaddleOCR
+from combobox import ComboBox
+from libs.constants import *
+from libs.utils import *
+from libs.settings import Settings
+from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
+from libs.stringBundle import StringBundle
+from libs.canvas import Canvas
+from libs.zoomWidget import ZoomWidget
+from libs.labelDialog import LabelDialog
+from libs.colorDialog import ColorDialog
+from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
+from libs.toolBar import ToolBar
+from libs.pascal_voc_io import PascalVocReader
+from libs.pascal_voc_io import XML_EXT
+from libs.yolo_io import YoloReader
+from libs.yolo_io import TXT_EXT
+from libs.ustr import ustr
+from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
@@ -37,28 +52,6 @@ except ImportError:
         sip.setapi('QVariant', 2)
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
-
-from combobox import ComboBox
-from libs.resources import *
-# from resources import *
-from libs.constants import *
-from libs.utils import *
-from libs.settings import Settings
-from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
-from libs.stringBundle import StringBundle
-from libs.canvas import Canvas
-from libs.zoomWidget import ZoomWidget
-from libs.labelDialog import LabelDialog
-from libs.colorDialog import ColorDialog
-from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
-from libs.toolBar import ToolBar, ToolButton
-from libs.pascal_voc_io import PascalVocReader
-from libs.pascal_voc_io import XML_EXT
-from libs.yolo_io import YoloReader
-from libs.yolo_io import TXT_EXT
-from libs.ustr import ustr
-from libs.hashableQListWidgetItem import HashableQListWidgetItem
-
 
 __appname__ = 'AutoLabel'
 
@@ -107,6 +100,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelHist = []
         self.lastOpenDir = None
         self.result_dic = []
+        self.currIndex = 0
+
 
         # Whether we need to save or not.
         self.dirty = False
@@ -968,16 +963,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(item.text()))
-        if currIndex < len(self.mImgList):
-            filename = self.mImgList[currIndex]
+        if self.currIndex == self.mImgList.index(ustr(item.text())):
+            pass
+        else:
+            self.currIndex = self.mImgList.index(ustr(item.text()))
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
-        if currIndex < len(self.mImgList):
-            filename = self.mImgList[currIndex]
+        if self.currIndex == self.mImgList.index(ustr(os.path.join(item.toolTip()))):
+            pass
+        else:
+            self.currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
@@ -2156,4 +2155,11 @@ def main():
     return app.exec_()
 
 if __name__ == '__main__':
+    
+    resource_file = './libs/resources.py'
+    if not os.path.exists(resource_file):
+        output = os.system('pyrcc5 -o libs/resources.py resources.qrc')
+        assert output is 0, "operate the cmd have some problems ,please check  whether there is a in the lib " \
+                            "directory resources.py "
+    import libs.resources
     sys.exit(main())
