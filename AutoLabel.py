@@ -2020,7 +2020,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.model == 'paddle':
             # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,
+            ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,use_gpu=False,
                             lang="ch")  # need to run only once to download and load model into memory
 
         for Imgpath in self.mImgList:
@@ -2054,7 +2054,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 针对单张图片
         # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,det=False,lang="ch")
+        ocr = PaddleOCR(use_pdserving=False, use_gpu=False, cls=True, det=True)
         # self.Path是否会不存在？
 
         # 读入当前图片
@@ -2064,20 +2064,26 @@ class MainWindow(QMainWindow, WindowMixin):
         # 读取 self.canvas.shapes 中的信息 然后再接一个识别模型
         # print([[(p.x(), p.y()) for p in shape.points] for shape in self.canvas.shapes]) # 得到边界框位置
 
-        if self.canvas.shapes:
+         if self.canvas.shapes:
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
                 box = [(int(p.x()), int(p.y())) for p in shape.points]
-                # print(box,box[0][1],box[2][1], box[0][0],box[2][0])
                 assert len(box) == 4
-                # crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]] # y0 y1,x0 x1
                 crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
                 # 四点框还需要补全
                 # JPG不支持透明度，丢弃Alpha色彩空间
-                crop_img=crop_img.convert('RGB')
+                crop_img = crop_img.convert('RGB')
                 crop_img.save('./crop_img_tmp.jpg')
-                result = ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]]
+                result = ocr.ocr('./crop_img_tmp.jpg', cls=True, det=True)
+                string_list = []
+                mini_score = 1
+                print(result)
+                for line in result:
+                    string_list.append(line[1][0])
+                    if mini_score > line[1][1]:
+                        mini_score = line[1][1]
+                result = [[''.join(string_list), mini_score]]
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
                     # 再将格式改回，增加box
