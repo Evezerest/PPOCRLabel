@@ -2155,8 +2155,11 @@ def main():
     return app.exec_()
 
 if __name__ == '__main__':
-    output = os.system('pyrcc5 -o libs/resources.py resources.qrc')
-    assert output is 0, "operate the cmd have some problems ,please check  whether there is a in the lib " \
-                        "directory resources.py "
+    
+    resource_file = './libs/resources.py'
+    if not os.path.exists(resource_file):
+        output = os.system('pyrcc5 -o libs/resources.py resources.qrc')
+        assert output is 0, "operate the cmd have some problems ,please check  whether there is a in the lib " \
+                            "directory resources.py "
     import libs.resources
     sys.exit(main())
