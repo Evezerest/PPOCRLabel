@@ -2054,11 +2054,11 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 针对单张图片
         # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_pdserving=False, use_gpu=False, cls=True, det=True)
+        ocr = PaddleOCR(use_pdserving=False, use_gpu=False, cls=True, det=False)
         # self.Path是否会不存在？
 
         # 读入当前图片
-        img = Image.open(self.filePath)
+        img = cv2.imread(self.filePath)
 
         # TODO: 这里需要只预测的功能，需要将移动之后的框参数传入
         # 读取 self.canvas.shapes 中的信息 然后再接一个识别模型
@@ -2068,22 +2068,10 @@ class MainWindow(QMainWindow, WindowMixin):
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
-                box = [(int(p.x()), int(p.y())) for p in shape.points]
+                box = [[int(p.x()), int(p.y())] for p in shape.points]
                 assert len(box) == 4
-                crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
-                # 四点框还需要补全
-                # JPG不支持透明度，丢弃Alpha色彩空间
-                crop_img = crop_img.convert('RGB')
-                crop_img.save('./crop_img_tmp.jpg')
-                result = ocr.ocr('./crop_img_tmp.jpg', cls=True, det=True)
-                string_list = []
-                mini_score = 1
-                print(result)
-                for line in result:
-                    string_list.append(line[1][0])
-                    if mini_score > line[1][1]:
-                        mini_score = line[1][1]
-                result = [[''.join(string_list), mini_score]]
+                img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+                result = ocr.ocr(img_crop, cls=True, det=False)
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
                     # 再将格式改回，增加box
