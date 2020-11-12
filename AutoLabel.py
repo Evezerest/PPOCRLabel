@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # 准备只将原来的界面布局改掉，但发现比较困难
+# pyrcc5 -o libs/resources.py resources.qrc
 import argparse
 import codecs
 import distutils.spawn
@@ -14,6 +15,7 @@ import piexif
 import ast
 from functools import partial
 from collections import defaultdict
+import json
 
 # 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -48,6 +50,7 @@ from libs.shape import Shape, DEFAULT_LINE_COLOR, DEFAULT_FILL_COLOR
 from libs.stringBundle import StringBundle
 from libs.canvas import Canvas
 from libs.zoomWidget import ZoomWidget
+from libs.autoDialog import AutoDialog
 from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
 from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
@@ -107,6 +110,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelHist = []
         self.lastOpenDir = None
         self.result_dic = []
+        self.changeFileFolder = False
+        self.haveAutoReced = False
+        self.labelFile = None
 
         # Whether we need to save or not.
         self.dirty = False
@@ -121,6 +127,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Main widgets and related state.
         self.labelDialog = LabelDialog(parent=self, listItem=self.labelHist)
+        self.autoDialog = AutoDialog(parent=self)
 
         self.itemsToShapes = {}
         self.shapesToItems = {}
@@ -160,14 +167,14 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Create a widget for using default label # CheckBox加入到HBoxLayout中 再加入到Qwidget中，最后到VBoxLayout中
         # 这部分以后可以删除
-        self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
-        self.useDefaultLabelCheckbox.setChecked(False)
-        self.defaultLabelTextLine = QLineEdit()
-        useDefaultLabelQHBoxLayout = QHBoxLayout()
-        useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
-        useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
-        useDefaultLabelContainer = QWidget()
-        useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
+        # self.useDefaultLabelCheckbox = QCheckBox(getStr('useDefaultLabel'))
+        # self.useDefaultLabelCheckbox.setChecked(False)
+        # self.defaultLabelTextLine = QLineEdit()
+        # useDefaultLabelQHBoxLayout = QHBoxLayout()
+        # useDefaultLabelQHBoxLayout.addWidget(self.useDefaultLabelCheckbox)
+        # useDefaultLabelQHBoxLayout.addWidget(self.defaultLabelTextLine)
+        # useDefaultLabelContainer = QWidget()
+        # useDefaultLabelContainer.setLayout(useDefaultLabelQHBoxLayout)
 
         # Create a widget for edit and diffc button
         self.diffcButton = QCheckBox(getStr('useDifficult'))
@@ -196,12 +203,12 @@ class MainWindow(QMainWindow, WindowMixin):
         # listLayout.addWidget(self.newButton) # ADD
         # listLayout.addWidget(self.editButton)
         listLayout.addWidget(self.diffcButton)
-        listLayout.addWidget(useDefaultLabelContainer)
+        #listLayout.addWidget(useDefaultLabelContainer)
 
 
         # Create and add combobox for showing unique labels in group 显示不同标签用的
-        self.comboBox = ComboBox(self)
-        listLayout.addWidget(self.comboBox)
+        # self.comboBox = ComboBox(self)
+        # listLayout.addWidget(self.comboBox)
 
         ################## label窗 ####################
         # Create and add a widget for showing current label items
@@ -214,7 +221,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelList.itemDoubleClicked.connect(self.editLabel)
         # Connect to itemChanged to detect checkbox changes.
         self.labelList.itemChanged.connect(self.labelItemChanged)
-        listLayout.addWidget(self.labelList)
+        self.labelListDock = QDockWidget('识别结果',self)
+        self.labelListDock.setWidget(self.labelList)
+        self.labelListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        listLayout.addWidget(self.labelListDock)
 
         ################## 检测窗 ####################
         self.BoxList = QListWidget()
@@ -226,7 +236,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.BoxList.itemDoubleClicked.connect(self.editBox) # 双击之后更改内容
         # Connect to itemChanged to detect checkbox changes.
         self.BoxList.itemChanged.connect(self.boxItemChanged)
-        listLayout.addWidget(self.BoxList)
+        self.BoxListDock = QDockWidget('检测框位置', self)
+        self.BoxListDock.setWidget(self.BoxList)
+        self.BoxListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        listLayout.addWidget(self.BoxListDock)
 
         ############ 左侧底层box ############
         leftbtmtoolbox = QHBoxLayout()
@@ -326,6 +339,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.icondock = QDockWidget('iconList', self)
         self.icondock.setObjectName('icons')
         self.icondock.setWidget(iconListContainer)
+        self.icondock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         # self.additems()
         self.addDockWidget(Qt.BottomDockWidgetArea, self.icondock)
 
@@ -367,6 +381,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
         self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
+
+        self.filedock.setFeatures(QDockWidget.NoDockWidgetFeatures)
 
 
 
@@ -487,7 +503,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('getStr is ', getStr('editLabel'))
         # Add:
         AutoRec = action('Auto Recognition', self.autoRecognition, # 新加入按键
-                      'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=True)
+                      'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=False)
 
         reRec = action('reRecognition', self.reRecognition, # 新加入按键
                       'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=True)
@@ -599,7 +615,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
+                   (opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
             self.autoSaving,
@@ -819,7 +835,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelFile = None
         self.canvas.resetState()
         self.labelCoordinates.clear()
-        self.comboBox.cb.clear()
+        # self.comboBox.cb.clear()
         self.result_dic = []
 
     def currentItem(self):
@@ -1109,7 +1125,7 @@ class MainWindow(QMainWindow, WindowMixin):
         uniqueTextList.append("")
         uniqueTextList.sort()
 
-        self.comboBox.update_items(uniqueTextList)
+        # self.comboBox.update_items(uniqueTextList)
 
 
     def saveLabels(self, annotationFilePath):
@@ -1226,15 +1242,15 @@ class MainWindow(QMainWindow, WindowMixin):
         # fix copy and delete
         self.shapeSelectionChanged(True)
 
-    def comboSelectionChanged(self, index):
-        text = self.comboBox.cb.itemText(index)
-        for i in range(self.labelList.count()):
-            if text == "":
-                self.labelList.item(i).setCheckState(2)
-            elif text != self.labelList.item(i).text():
-                self.labelList.item(i).setCheckState(0)
-            else:
-                self.labelList.item(i).setCheckState(2)
+    # def comboSelectionChanged(self, index):
+    #     text = self.comboBox.cb.itemText(index)
+    #     for i in range(self.labelList.count()):
+    #         if text == "":
+    #             self.labelList.item(i).setCheckState(2)
+    #         elif text != self.labelList.item(i).text():
+    #             self.labelList.item(i).setCheckState(0)
+    #         else:
+    #             self.labelList.item(i).setCheckState(2)
 
     def labelSelectionChanged(self):
         item = self.currentItem()
@@ -1270,19 +1286,29 @@ class MainWindow(QMainWindow, WindowMixin):
 
         position MUST be in global coordinates.
         """
-        if not self.useDefaultLabelCheckbox.isChecked() or not self.defaultLabelTextLine.text():
-            if len(self.labelHist) > 0:
+        # if not self.useDefaultLabelCheckbox.isChecked() or not self.defaultLabelTextLine.text():
+        #     if len(self.labelHist) > 0:
+        #         self.labelDialog = LabelDialog(
+        #             parent=self, listItem=self.labelHist)
+
+        #     # Sync single class mode from PR#106
+        #     if self.singleClassMode.isChecked() and self.lastLabel:
+        #         text = self.lastLabel
+        #     else:
+        #         text = self.labelDialog.popUp(text=self.prevLabelText)
+        #         self.lastLabel = text
+        # else:
+        #     text = self.defaultLabelTextLine.text()
+        if len(self.labelHist) > 0:
                 self.labelDialog = LabelDialog(
                     parent=self, listItem=self.labelHist)
 
-            # Sync single class mode from PR#106
-            if self.singleClassMode.isChecked() and self.lastLabel:
-                text = self.lastLabel
-            else:
-                text = self.labelDialog.popUp(text=self.prevLabelText)
-                self.lastLabel = text
+        # Sync single class mode from PR#106
+        if self.singleClassMode.isChecked() and self.lastLabel:
+            text = self.lastLabel
         else:
-            text = self.defaultLabelTextLine.text()
+            text = self.labelDialog.popUp(text=self.prevLabelText)
+            self.lastLabel = text
 
         # Add Chris
         self.diffcButton.setChecked(False)
@@ -1675,6 +1701,9 @@ class MainWindow(QMainWindow, WindowMixin):
         print('dirPath in importDirImages is',dirpath)
         self.iconlist.clear()
         self.additems(dirpath)
+        self.changeFileFolder = True
+        self.haveAutoReced = False
+        self.AutoRecognition.setEnabled(True)
         # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
 
     def verifyImg(self, _value=False):
@@ -2023,31 +2052,13 @@ class MainWindow(QMainWindow, WindowMixin):
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
             ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,
                             lang="ch")  # need to run only once to download and load model into memory
-
-        for Imgpath in self.mImgList:
-            print('ImgPath in autoRec is ', Imgpath)
-
-            # 模型选择
-            # if self.model == 'ali':
-            #     # 对数据处理，获得标签
-            #     result = demo(Imgpath)
-            #     # 阿里云部分
-            #     self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
-
-            if self.model == 'paddle':
-                self.result_dic = ocr.ocr(Imgpath, cls=True)
-                print(self.result_dic)
-
-            # 结果保存
-            if self.result_dic is None or len(self.result_dic) == 0:
-                print('Can not recognise ', Imgpath)
-            else:
-                # self.filePath 存在
-                self.filePath = Imgpath  # 文件路径
-                # 保存
-                self.saveFile(mode='Auto')
+        self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=self.mImgList, lenbar=len(self.mImgList))
+        self.autoDialog.popUp()
+        
 
         self.loadFile(self.filePath) # ADD
+        self.haveAutoReced = True
+        self.AutoRecognition.setEnabled(False)
 
 
 
@@ -2112,6 +2123,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def autolcm(self):
         print('autolabelchoosemodel')
+        #self.listToStr([[5.0, 15.0], [23.0, 15.0], [23.0, 114.0], [5.0, 114.0]])
 
 
 def inverted(color):
