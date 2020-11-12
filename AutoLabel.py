@@ -2050,7 +2050,7 @@ class MainWindow(QMainWindow, WindowMixin):
             ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, rec=False,
                             lang="ch")  # need to run only once to download and load model into memory
             
-         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
+        uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
         self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=uncheckedList)
         self.autoDialog.popUp()
         
