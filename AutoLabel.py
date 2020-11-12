@@ -14,6 +14,9 @@ import piexif
 import ast
 from functools import partial
 from collections import defaultdict
+import json
+import cv2
+import numpy as np
 
 # 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -34,6 +37,7 @@ except ImportError:
     # http://stackoverflow.com/questions/21217399/pyqt4-qtcore-qvariant-object-instead-of-a-string
     if sys.version_info.major >= 3:
         import sip
+
         sip.setapi('QVariant', 2)
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
@@ -59,8 +63,8 @@ from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
-
 __appname__ = 'AutoLabel'
+
 
 class WindowMixin(object):
 
@@ -70,7 +74,7 @@ class WindowMixin(object):
             addActions(menu, actions)
         return menu
 
-    def toolbar(self, title, actions=None): # 顶和底层
+    def toolbar(self, title, actions=None):  # 顶和底层
         toolbar = ToolBar(title)
         toolbar.setObjectName(u'%sToolBar' % title)
         # toolbar.setOrientation(Qt.Vertical)
@@ -90,7 +94,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Load setting in the main thread
         self.settings = Settings()
-        self.settings.load() # 读入现有的设置
+        self.settings.load()  # 读入现有的设置
         settings = self.settings
 
         # Load string bundle for i18n
@@ -99,7 +103,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Save as Pascal voc xml
         self.defaultSaveDir = defaultSaveDir
-        self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
+        # self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
+        self.labelFileFormat = 'Paddle'  # 写死
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=False, cls=True, lang="ch")  # 读入模型
 
         # For loading all image under a directory
         self.mImgList = []
@@ -127,18 +133,21 @@ class MainWindow(QMainWindow, WindowMixin):
         self.itemsToShapesbox = {}
         self.shapesToItemsbox = {}
         self.prevLabelText = '待识别'
-        self.model = 'paddle' # ADD        
+        self.model = 'paddle'  # ADD
+        self.PPreader = None  # txt标注类
 
         ################# 文件列表  ###############
+        # TODO: 增加icon
         self.fileListWidget = QListWidget()
-        self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked) # 文件被双击后
-        self.fileListWidget.setIconSize(QSize(25, 25)) # 设置控件大小
+        self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)  # 文件被双击后
+        self.fileListWidget.setIconSize(QSize(25, 25))  # 设置控件大小
         filelistLayout = QVBoxLayout()
         filelistLayout.setContentsMargins(0, 0, 0, 0)
-        filelistLayout.addWidget(self.fileListWidget) #self.verticalLayoutWidget_2
-        
+        filelistLayout.addWidget(self.fileListWidget)  # self.verticalLayoutWidget_2
+
         self.AutoRecognition = QToolButton()
         self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        # self.AutoRecognition.setIcon(newIcon()) # TODO: icon
         autoRecLayout = QHBoxLayout()
         autoRecLayout.setContentsMargins(0, 0, 0, 0)
         autoRecLayout.addWidget(self.AutoRecognition)
@@ -148,11 +157,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
         fileListContainer = QWidget()
         fileListContainer.setLayout(filelistLayout)
-        self.filedock = QDockWidget(getStr('fileList'), self) # getStr方便转换
+        self.filedock = QDockWidget(getStr('fileList'), self)  # getStr方便转换
         self.filedock.setObjectName(getStr('files'))
         self.filedock.setWidget(fileListContainer)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock)
-
 
         ######## 右侧的整体区域
         listLayout = QVBoxLayout()
@@ -176,6 +184,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        # self.reRecogButton.setIcon(newIcon()) # TODO
         # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -198,7 +207,6 @@ class MainWindow(QMainWindow, WindowMixin):
         listLayout.addWidget(self.diffcButton)
         listLayout.addWidget(useDefaultLabelContainer)
 
-
         # Create and add combobox for showing unique labels in group 显示不同标签用的
         self.comboBox = ComboBox(self)
         listLayout.addWidget(self.comboBox)
@@ -207,9 +215,9 @@ class MainWindow(QMainWindow, WindowMixin):
         # Create and add a widget for showing current label items
         self.labelList = QListWidget()
         labelListContainer = QWidget()
-        labelListContainer.setLayout(listLayout) # 把窗口父化？
+        labelListContainer.setLayout(listLayout)  # 把窗口父化？
         # 信号触发条件
-        self.labelList.itemActivated.connect(self.labelSelectionChanged) # 激活时发出信号
+        self.labelList.itemActivated.connect(self.labelSelectionChanged)  # 激活时发出信号
         self.labelList.itemSelectionChanged.connect(self.labelSelectionChanged)
         self.labelList.itemDoubleClicked.connect(self.editLabel)
         # Connect to itemChanged to detect checkbox changes.
@@ -223,7 +231,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # 信号触发条件
         self.BoxList.itemActivated.connect(self.boxSelectionChanged)  # 激活时发出信号
         self.BoxList.itemSelectionChanged.connect(self.boxSelectionChanged)
-        self.BoxList.itemDoubleClicked.connect(self.editBox) # 双击之后更改内容
+        self.BoxList.itemDoubleClicked.connect(self.editBox)  # 双击之后更改内容
         # Connect to itemChanged to detect checkbox changes.
         self.BoxList.itemChanged.connect(self.boxItemChanged)
         listLayout.addWidget(self.BoxList)
@@ -241,7 +249,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.dock.setObjectName(getStr('labels'))
         self.dock.setWidget(labelListContainer)
 
-
         # 文件窗
         # # ADD
         # self.centralwidget = QWidget() # zheliyouwenti
@@ -256,20 +263,18 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)
         # filelistLayout.addWidget(self.fileListWidget)
 
-        
-
-
+        ########## 缩放组件 #########
         self.imgsplider = QSlider(Qt.Horizontal)
         self.imgsplider.valueChanged.connect(self.CanvasSizeChange)
         self.imgsplider.setMinimum(-150)
         self.imgsplider.setMaximum(150)
         self.imgsplider.setSingleStep(1)
         self.imgsplider.setTickPosition(QSlider.TicksBelow)
-        self.imgsplider.setTickInterval(1) 
+        self.imgsplider.setTickInterval(1)
         op = QGraphicsOpacityEffect()
         op.setOpacity(0.2)
         self.imgsplider.setGraphicsEffect(op)
-        #self.imgsplider.setAttribute(Qt.WA_TranslucentBackground)
+        # self.imgsplider.setAttribute(Qt.WA_TranslucentBackground)
         self.imgsliderDock = QDockWidget(getStr('ImageResize'), self)
         self.imgsliderDock.setObjectName(getStr('IR'))
         self.imgsliderDock.setWidget(self.imgsplider)
@@ -283,10 +288,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.zoomWidget = ZoomWidget()
         self.colorDialog = ColorDialog(parent=self)
         self.zoomWidgetValue = self.zoomWidget.value()
-        
+
         ########## 底层缩略图 #########
         hlayout = QHBoxLayout()
-        m = (0,0,0,0)
+        m = (0, 0, 0, 0)
         hlayout.setSpacing(0)
         hlayout.setContentsMargins(*m)
         self.preButton = QToolButton()
@@ -311,12 +316,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.nextButton.setIconSize(QSize(80, 80))
         self.nextButton.clicked.connect(self.openNextImg)
         self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
-        
 
         hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
         hlayout.addWidget(self.nextButton)
-
 
         # self.setLayout(hlayout)
 
@@ -328,7 +331,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.icondock.setWidget(iconListContainer)
         # self.additems()
         self.addDockWidget(Qt.BottomDockWidgetArea, self.icondock)
-
 
         # 框绘制
         self.canvas = Canvas(parent=self)
@@ -347,28 +349,23 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.scrollRequest.connect(self.scrollRequest)
 
         self.canvas.newShape.connect(self.newShape)
-        self.canvas.shapeMoved.connect(self.setDirty)
+        self.canvas.shapeMoved.connect(self.updateBoxlist)  # self.setDirty TODO
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
 
         # 设置docker所放置的区域
         self.setCentralWidget(scroll)
-        #self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
+        # self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
-
 
         # TODO：双击Label之后跳出的界面 不需要备选label，需要更改。将label的单击显示用可展开的形式
         # 改变lineedit之后 函数没有对应的 可能需要重写这部分
 
-
-
         # self.filedock.setFeatures(QDockWidget.DockWidgetFloatable)
-        self.filedock.setFeatures(self.filedock.features() ^ QDockWidget.DockWidgetFloatable)# 改动之后出现关闭按钮
+        self.filedock.setFeatures(self.filedock.features() ^ QDockWidget.DockWidgetFloatable)  # 改动之后出现关闭按钮
 
         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
         self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
-
-
 
         ###### Actions
         action = partial(newAction, self)
@@ -382,7 +379,7 @@ class MainWindow(QMainWindow, WindowMixin):
                          'Ctrl+u', 'open', getStr('openDir'))
 
         copyPrevBounding = action(getStr('copyPrevBounding'), self.copyPreviousBoundingBoxes,
-                         'Ctrl+v', 'paste', getStr('copyPrevBounding'))
+                                  'Ctrl+v', 'paste', getStr('copyPrevBounding'))
 
         changeSavedir = action(getStr('changeSaveDir'), self.changeSavedirDialog,
                                'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'))
@@ -403,12 +400,12 @@ class MainWindow(QMainWindow, WindowMixin):
                       'Ctrl+S', 'save', getStr('saveDetail'), enabled=False)
 
         alcm = action(getStr('choosemodel'), self.autolcm,
-                                        'Ctrl+M', 'next', getStr('tipchoosemodel'))
+                      'Ctrl+M', 'next', getStr('tipchoosemodel'))
         isUsingPascalVoc = self.labelFileFormat == LabelFileFormat.PASCAL_VOC
-        save_format = action('&PascalVOC' if isUsingPascalVoc else '&YOLO',
-                             self.change_format, 'Ctrl+',
-                             'format_voc' if isUsingPascalVoc else 'format_yolo',
-                             getStr('changeSaveFormat'), enabled=True)
+        # save_format = action('&PascalVOC' if isUsingPascalVoc else '&YOLO',
+        #                      self.change_format, 'Ctrl+',
+        #                      'format_voc' if isUsingPascalVoc else 'format_yolo',
+        #                      getStr('changeSaveFormat'), enabled=True)
 
         saveAs = action(getStr('saveAs'), self.saveFileAs,
                         'Ctrl+Shift+S', 'save-as', getStr('saveAsDetail'), enabled=False)
@@ -486,17 +483,17 @@ class MainWindow(QMainWindow, WindowMixin):
                       enabled=False)
         # print('getStr is ', getStr('editLabel'))
         # Add:
-        AutoRec = action('Auto Recognition', self.autoRecognition, # 新加入按键
-                      'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=True)
+        AutoRec = action('Auto Recognition', self.autoRecognition,  # 新加入按键
+                         'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=True)
 
-        reRec = action('reRecognition', self.reRecognition, # 新加入按键
-                      'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=True)
+        reRec = action('reRecognition', self.reRecognition,  # 新加入按键
+                       'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=True)
 
         createpoly = action('Creat Polygon', self.createPolygon,
                             'p', 'new', 'Creat Polygon', enabled=True)  # ADD
 
         self.editButton.setDefaultAction(edit)
-        self.newButton.setDefaultAction(create) # New: 右侧新增框按钮
+        self.newButton.setDefaultAction(create)  # New: 右侧新增框按钮
         self.DelButton.setDefaultAction(deleteImg)
         self.SaveButton.setDefaultAction(save)
         self.AutoRecognition.setDefaultAction(AutoRec)
@@ -522,7 +519,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         zoomContainer = QWidget()
         zoomContainer.setLayout(zoomLayout)
-        zoomContainer.setGeometry(0, 0, 30, 150) # x y w h # 只能加docker？
+        zoomContainer.setGeometry(0, 0, 30, 150)  # x y w h # 只能加docker？
 
         shapeLineColor = action(getStr('shapeLineColor'), self.chshapeLineColor,
                                 icon='color_line', tip=getStr('shapeLineColorDetail'),
@@ -531,15 +528,13 @@ class MainWindow(QMainWindow, WindowMixin):
                                 icon='color', tip=getStr('shapeFillColorDetail'),
                                 enabled=False)
 
-
-
         labels = self.dock.toggleViewAction()
         labels.setText(getStr('showHide'))
         labels.setShortcut('Ctrl+Shift+L')
 
         # Label list context menu.
         labelMenu = QMenu()
-        addActions(labelMenu, (edit, delete)) # 右键内容
+        addActions(labelMenu, (edit, delete))  # 右键内容
 
         self.labelList.setContextMenuPolicy(Qt.CustomContextMenu)
         self.labelList.customContextMenuRequested.connect(
@@ -553,8 +548,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.drawSquaresOption.triggered.connect(self.toogleDrawSquare)
 
         # Store actions for further handling.
-        self.actions = struct(save=save, save_format=save_format, saveAs=saveAs, open=open, close=close, resetAll = resetAll, deleteImg = deleteImg,
+        self.actions = struct(save=save, saveAs=saveAs, open=open, close=close, resetAll=resetAll, deleteImg=deleteImg,
                               lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
+                              # save_format=save_format,
                               createMode=createMode, editMode=editMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
@@ -564,7 +560,7 @@ class MainWindow(QMainWindow, WindowMixin):
                                   open, opendir, save, saveAs, close, resetAll, quit),
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
-                                        None, color1, self.drawSquaresOption, createpoly), # 编辑菜单
+                                        None, color1, self.drawSquaresOption, createpoly),  # 编辑菜单
                               beginnerContext=(create, edit, copy, delete),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
@@ -584,7 +580,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # Auto saving : Enable auto saving if pressing next
         self.autoSaving = QAction(getStr('autoSaveMode'), self)
         self.autoSaving.setCheckable(True)
-        self.autoSaving.setChecked(settings.get(SETTING_AUTO_SAVE, False)) # 默认关闭
+        self.autoSaving.setChecked(settings.get(SETTING_AUTO_SAVE, False))  # 默认关闭
         # Sync single class mode from PR#106
         self.singleClassMode = QAction(getStr('singleClsMode'), self)
         self.singleClassMode.setShortcut("Ctrl+Shift+S")
@@ -599,7 +595,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
+                   (
+                   open, opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, saveAs,
+                   close, resetAll, deleteImg, quit))
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
             self.autoSaving,
@@ -620,15 +618,15 @@ class MainWindow(QMainWindow, WindowMixin):
             action('&Copy here', self.copyShape),
             action('&Move here', self.moveShape)))
 
-        #self.tools = self.toolbar('Tools')
+        # self.tools = self.toolbar('Tools')
 
         # 浮动窗
         self.actions.beginner = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, save_format, None, create, copy, delete, None,
+            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, None, create, copy, delete, None,
             zoomIn, zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, save, save_format, None,
+            open, opendir, changeSavedir, openNextImg, openPrevImg, save, None,
             createMode, editMode, None,
             hideAll, showAll)
 
@@ -671,6 +669,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastOpenDir = ustr(settings.get(SETTING_LAST_OPEN_DIR, None))
         if self.defaultSaveDir is None and saveDir is not None and os.path.exists(saveDir):
             self.defaultSaveDir = saveDir
+            self.loadFilestate(saveDir)  # 如果不设定 则在loadfile中读取文件时设置
+            self.loadPPlabel(saveDir)
             self.statusBar().showMessage('%s started. Annotation will be saved to %s' %
                                          (__appname__, self.defaultSaveDir))
             self.statusBar().show()
@@ -772,7 +772,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.menus[0].clear()
         addActions(self.canvas.menus[0], self.actions.beginnerContext)
         self.menus.edit.clear()
-        actions = (self.actions.create,) # if self.beginner() else (self.actions.createMode, self.actions.editMode)
+        actions = (self.actions.create,)  # if self.beginner() else (self.actions.createMode, self.actions.editMode)
         addActions(self.menus.edit, actions + self.actions.editMenu)
 
     def setBeginner(self):
@@ -810,7 +810,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def resetState(self):
         self.itemsToShapes.clear()
         self.shapesToItems.clear()
-        self.itemsToShapesbox.clear() # ADD
+        self.itemsToShapesbox.clear()  # ADD
         self.shapesToItemsbox.clear()
         self.labelList.clear()
         self.BoxList.clear()
@@ -866,13 +866,13 @@ class MainWindow(QMainWindow, WindowMixin):
         msg = u'Name:{0} \nApp Version:{1} \n{2} '.format(__appname__, __version__, sys.version_info)
         QMessageBox.information(self, u'Information', msg)
 
-    def createShape(self): # 增加框——改变两个状态
+    def createShape(self):  # 增加框——改变两个状态
         assert self.beginner()
         self.canvas.setEditing(False)
         self.actions.create.setEnabled(False)
         self.canvas.fourpoint = False
 
-    def createPolygon(self): # 增加框——改变两个状态
+    def createPolygon(self):  # 增加框——改变两个状态
         assert self.beginner()
         self.canvas.setEditing(False)
         self.canvas.fourpoint = True
@@ -907,6 +907,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         def exists(filename):
             return os.path.exists(filename)
+
         menu = self.menus.recentFiles
         menu.clear()
         files = [f for f in self.recentFiles if f !=
@@ -921,7 +922,7 @@ class MainWindow(QMainWindow, WindowMixin):
     def popLabelListMenu(self, point):
         self.menus.labelList.exec_(self.labelList.mapToGlobal(point))
 
-    def editLabel(self): # 双击之后
+    def editLabel(self):  # 双击之后
         if not self.canvas.editing():
             return
         item = self.currentItem()
@@ -932,17 +933,16 @@ class MainWindow(QMainWindow, WindowMixin):
             item.setText(text)
             item.setBackground(generateColorByText(text))
             self.setDirty()
-            self.updateComboBox() # 更新候选
-
+            self.updateComboBox()  # 更新候选
 
     ######## 检测框相关函数 #######
 
     def boxItemChanged(self, item):
-        shape = self.itemsToShapesbox[item] # 连接到目标shape
+        shape = self.itemsToShapesbox[item]  # 连接到目标shape
         # TODO: 需要对内容增加判断条件
-        box = ast.literal_eval(item.text()) # str转list
+        box = ast.literal_eval(item.text())  # str转list
         # print('shape in labelItemChanged is',shape.points)
-        if box != [(p.x(), p.y()) for p in shape.points]: # label发生变化，需要重新写入
+        if box != [(p.x(), p.y()) for p in shape.points]:  # label发生变化，需要重新写入
             # shape.points = box # 写入point的数据类型？
             shape.points = [QPointF(p[0], p[1]) for p in box]
 
@@ -952,30 +952,38 @@ class MainWindow(QMainWindow, WindowMixin):
         else:  # User probably changed item visibility
             self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
 
-    def editBox(self): # ADD
+    def editBox(self):  # ADD
         if not self.canvas.editing():
             return
         item = self.currentBox()
         if not item:
             return
-        text = self.labelDialog.popUp(item.text()) # 设置文字
+        text = self.labelDialog.popUp(item.text())  # 设置文字
         if text is not None:
-            item.setText(text) # 这里会连接到labelItemChanged
+            item.setText(text)  # 这里会连接到labelItemChanged
             item.setBackground(generateColorByText(text))
             self.setDirty()
-            self.updateComboBox() # 更新候选
+            self.updateComboBox()  # 更新候选
 
+    def updateBoxlist(self):
+        # 更新list中的坐标
+        shape = self.canvas.selectedShape  # 这边还需要选定当前的shape框
+        item = self.shapesToItemsbox[shape]  # listitem
+        text = [(int(p.x()), int(p.y())) for p in shape.points]
+        item.setText(str(text))
+        self.setDirty()
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(item.text()))
+        # a = os.path.join(self.dirname, item.text())
+        currIndex = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))  # 加入一个base
         if currIndex < len(self.mImgList):
             filename = self.mImgList[currIndex]
             if filename:
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
+        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))  # TODO:两种形式那种快？
         if currIndex < len(self.mImgList):
             filename = self.mImgList[currIndex]
             if filename:
@@ -986,15 +994,15 @@ class MainWindow(QMainWindow, WindowMixin):
             self.zoomWidget.setValue(self.zoomWidgetValue + self.imgsplider.value())
 
     # Add chris
-    def btnstate(self, item= None):
+    def btnstate(self, item=None):
         """ Function to handle difficult examples
         Update on each object """
         if not self.canvas.editing():
             return
 
         item = self.currentItem()
-        if not item: # If not selected Item, take the first one
-            item = self.labelList.item(self.labelList.count()-1)
+        if not item:  # If not selected Item, take the first one
+            item = self.labelList.item(self.labelList.count() - 1)
 
         difficult = self.diffcButton.isChecked()
 
@@ -1020,7 +1028,7 @@ class MainWindow(QMainWindow, WindowMixin):
             shape = self.canvas.selectedShape
             if shape:
                 self.shapesToItems[shape].setSelected(True)
-                self.shapesToItemsbox[shape].setSelected(True) # ADD
+                self.shapesToItemsbox[shape].setSelected(True)  # ADD
             else:
                 self.labelList.clearSelection()
         self.actions.delete.setEnabled(selected)
@@ -1029,23 +1037,23 @@ class MainWindow(QMainWindow, WindowMixin):
         self.actions.shapeLineColor.setEnabled(selected)
         self.actions.shapeFillColor.setEnabled(selected)
 
-    def addLabel(self, shape): #
+    def addLabel(self, shape):  #
         shape.paintLabel = self.displayLabelOption.isChecked()
-        item = HashableQListWidgetItem(shape.label) # 这个类只能添加str
+        item = HashableQListWidgetItem(shape.label)  # 这个类只能添加str
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)
         item.setBackground(generateColorByText(shape.label))
-        self.itemsToShapes[item] = shape # 两个dict 相互连接
+        self.itemsToShapes[item] = shape  # 两个dict 相互连接
         self.shapesToItems[shape] = item
         self.labelList.addItem(item)
         # print('item in add label is ',[(p.x(), p.y()) for p in shape.points], shape.label)
 
         # ADD for box
-        item = HashableQListWidgetItem(str([(p.x(), p.y()) for p in shape.points])) # 这里可以转化一下
+        item = HashableQListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))  # 这里可以转化一下
         # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked) # 状态
-        item.setBackground(generateColorByText(shape.label)) # 背景颜色
+        item.setCheckState(Qt.Checked)  # 状态
+        item.setBackground(generateColorByText(shape.label))  # 背景颜色
         self.itemsToShapesbox[item] = shape
         self.shapesToItemsbox[shape] = item
         self.BoxList.addItem(item)
@@ -1100,7 +1108,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.updateComboBox()
         self.canvas.loadShapes(s)
 
-    def updateComboBox(self): # 在备选栏中更新不同的标签
+    def updateComboBox(self):  # 在备选栏中更新不同的标签
         # Get the unique labels and add them to the Combobox.
         itemsTextList = [str(self.labelList.item(i).text()) for i in range(self.labelList.count())]
 
@@ -1111,25 +1119,27 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.comboBox.update_items(uniqueTextList)
 
-
-    def saveLabels(self, annotationFilePath):
+    def saveLabels(self, annotationFilePath, mode='Auto'):  # annotation对txt无效了
+        # mode = auto 则不从canvas中读取 且识别到空字符时不写入, Manual即手动点击保存按钮
         # 从canvas中读取shapes保存到annotationFIle中
 
         annotationFilePath = ustr(annotationFilePath)
         if self.labelFile is None:
-            self.labelFile = LabelFile() # 新建一个实例
-            self.labelFile.verified = self.canvas.verified # 都是False
+            self.labelFile = LabelFile()  # 新建一个实例
+            self.labelFile.verified = self.canvas.verified  # 都是False
 
         def format_shape(s):
             # print('s in saveLabels is ',s)
-            return dict(label=s.label, # str
+            return dict(label=s.label,  # str
                         line_color=s.line_color.getRgb(),
                         fill_color=s.fill_color.getRgb(),
-                        points=[(p.x(), p.y()) for p in s.points],# QPonitF
-                       # add chris
-                        difficult = s.difficult) # bool
+                        points=[(p.x(), p.y()) for p in s.points],  # QPonitF
+                        # add chris
+                        difficult=s.difficult)  # bool
 
-        shapes = [format_shape(shape) for shape in self.canvas.shapes] # 从canvas中读入shape 并且获得标记
+        # result是对shape的进一步简化， 手动保存时会出现框颜色
+        shapes = [] if mode == 'Auto' else \
+            [format_shape(shape) for shape in self.canvas.shapes]  # 从canvas中读入shape的内容是有line的
         # Can add differrent annotation formats here
 
         if self.model == 'paddle':
@@ -1137,69 +1147,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
                 trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
-                shapes.append(trans_dic)
-
-        try:
-            if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
-                if annotationFilePath[-4:].lower() != ".xml":
-                    annotationFilePath += XML_EXT
-                self.labelFile.savePascalVocFormat(annotationFilePath, shapes, self.filePath, self.imageData,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
-            elif self.labelFileFormat == LabelFileFormat.YOLO:
-                if annotationFilePath[-4:].lower() != ".txt":
-                    annotationFilePath += TXT_EXT
-                self.labelFile.saveYoloFormat(annotationFilePath, shapes, self.filePath, self.imageData, self.labelHist,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
-            else:
-                self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
-                                    self.lineColor.getRgb(), self.fillColor.getRgb())
-            print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
-            return True
-        except LabelFileError as e:
-            self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
-            return False
-
-    def saveLabels_auto(self, annotationFilePath): # 将自动标注的label保存到annotationFIle中，
-        annotationFilePath = ustr(annotationFilePath)
-        if self.labelFile is None:
-            self.labelFile = LabelFile() # 新建一个实例
-            self.labelFile.verified = self.canvas.verified # 都是False
-
-        # TODO: 增加保存的内容
-        def format_shape(s):
-            return dict(label=s.label, # 这个的格式
-                        line_color=s.line_color.getRgb(),
-                        fill_color=s.fill_color.getRgb(),
-                        points=[(p.x(), p.y()) for p in s.points],
-                       # add chris
-                        difficult = s.difficult)
-
-
-        # Keypoints 变为points 然后几个坐标放一起
-
-        shapes = []
-        # if self.model == 'ali':
-        #     for box in self.result_dic['ret']: # 每个box都是dict 仍然要组成dict
-        #         for k in box.keys(): # each box
-        #             if k == "keypoints":
-        #                 point = [[int(box[k][i]['x']), int(box[k][i]['y'])] for i in range(4)]
-        #             elif k =='word':
-        #                 word = box[k]
-        #         trans_dic = {"label": word, "points": point, 'difficult':False}
-        #         shapes.append(trans_dic)
-
-        if self.model == 'paddle':
-            for box in self.result_dic:
-                # if len(box)==1: # 只有框
-                #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
-                trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
-                if trans_dic["label"] is "":
+                if trans_dic["label"] is "" and mode == 'Auto':
                     continue
                 shapes.append(trans_dic)
-        # shapes = [format_shape(shape) for shape in self.canvas.shapes] # 从canvas中读入shape 并且获得标记
-        # shapes = [format_shape(shape) for shape in self.result] # 每个都是dict
 
-        # Can add differrent annotation formats here
         try:
             if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
                 if annotationFilePath[-4:].lower() != ".xml":
@@ -1210,7 +1161,15 @@ class MainWindow(QMainWindow, WindowMixin):
                 if annotationFilePath[-4:].lower() != ".txt":
                     annotationFilePath += TXT_EXT
                 self.labelFile.saveYoloFormat(annotationFilePath, shapes, self.filePath, self.imageData, self.labelHist,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
+                                              self.lineColor.getRgb(), self.fillColor.getRgb())
+            elif self.labelFileFormat == 'Paddle':
+                trans_dic = []
+                for box in shapes:  # 转换格式 手动点击保存时result为0.应从shapes中读入
+                    # if len(box)==1: # 只有框
+                    #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
+                    trans_dic.append({"transcription": box['label'], "points": box['points'], 'difficult': False})
+                self.PPlabel[annotationFilePath] = trans_dic
+
             else:
                 self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
                                     self.lineColor.getRgb(), self.fillColor.getRgb())
@@ -1219,7 +1178,6 @@ class MainWindow(QMainWindow, WindowMixin):
         except LabelFileError as e:
             self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
             return False
-
 
     def copySelectedShape(self):
         self.addLabel(self.canvas.copySelectedShape())
@@ -1388,9 +1346,9 @@ class MainWindow(QMainWindow, WindowMixin):
         for item, shape in self.itemsToShapes.items():
             item.setCheckState(Qt.Checked if value else Qt.Unchecked)
 
-    def loadFile(self, filePath=None): # 读入单张图片
+    def loadFile(self, filePath=None):  # 读入单张图片
         """Load the specified file, or the last opened file if None."""
-        self.resetState()
+        self.resetState()  # 每次双击之后为什么都需要重新设置状态？
         self.canvas.setEnabled(False)
         if filePath is None:
             filePath = self.settings.get(SETTING_FILENAME)
@@ -1398,16 +1356,16 @@ class MainWindow(QMainWindow, WindowMixin):
         # Make sure that filePath is a regular python string, rather than QString
         filePath = ustr(filePath)
         # Fix bug: An index error after select a directory when open a new file.
-        unicodeFilePath = ustr(filePath) # 路径
+        unicodeFilePath = ustr(filePath)  # 路径
         # unicodeFilePath = os.path.abspath(unicodeFilePath)
         # Tzutalin 20160906 : Add file list and dock to move faster
         # Highlight the file item
         if unicodeFilePath and self.fileListWidget.count() > 0:
             if unicodeFilePath in self.mImgList:
-                index = self.mImgList.index(unicodeFilePath) # 序号
+                index = self.mImgList.index(unicodeFilePath)  # 序号
                 fileWidgetItem = self.fileListWidget.item(index)
-                print('unicodeFilePath is',unicodeFilePath)
-                fileWidgetItem.setSelected(True) # 设计一个选中
+                print('unicodeFilePath is', unicodeFilePath)
+                fileWidgetItem.setSelected(True)  # 设计一个选中
 
                 iconWidgetItem = self.iconlist.item(index)
                 iconWidgetItem.setSelected(True)
@@ -1419,12 +1377,11 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # if unicodeFilePath and self.iconList.count() > 0:
         #     if unicodeFilePath in self.mImgList:
-                
 
         if unicodeFilePath and os.path.exists(unicodeFilePath):
-            if LabelFile.isLabelFile(unicodeFilePath): # 如果有label
+            if LabelFile.isLabelFile(unicodeFilePath):  # 是否是label文件
                 try:
-                    self.labelFile = LabelFile(unicodeFilePath) # 读入Label
+                    self.labelFile = LabelFile(unicodeFilePath)  # 读入Label，输入png
                 except LabelFileError as e:
                     self.errorMessage(u'Error opening file',
                                       (u"<p><b>%s</b></p>"
@@ -1440,7 +1397,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 # Load image:
                 # read data first and store for saving into label file.
                 self.imageData = read(unicodeFilePath, None)
-                self.labelFile = None
+                self.labelFile = None  # 说明不是label文件
                 self.canvas.verified = False
 
             image = QImage.fromData(self.imageData)
@@ -1452,34 +1409,40 @@ class MainWindow(QMainWindow, WindowMixin):
             self.status("Loaded %s" % os.path.basename(unicodeFilePath))
             self.image = image
             self.filePath = unicodeFilePath
-            self.canvas.loadPixmap(QPixmap.fromImage(image)) # 获得一些size信息
+            self.canvas.loadPixmap(QPixmap.fromImage(image))  # 获得一些size信息
             if self.labelFile:
                 self.loadLabels(self.labelFile.shapes)
-            self.setClean()
+            if self.validFilestate(filePath) is True:  # 根据当前图片状态确定保存按钮
+                self.setClean()
+            else:
+                self.setDirty()
             self.canvas.setEnabled(True)
             self.adjustScale(initial=True)
             self.paintCanvas()
             self.addRecentFile(self.filePath)
             self.toggleActions(True)
-            self.showBoundingBoxFromAnnotationFile(filePath) # 打开现有文件的label
+            # self.showBoundingBoxFromAnnotationFile(filePath) # 前提是已经有，打开现有文件的label
+            # TODO: 先看一下按这样做需不需要动canvas部分
+            self.showBoundingBoxFromPPlabel(filePath)
 
             self.setWindowTitle(__appname__ + ' ' + filePath)
 
             # Default : select last item if there is at least one item 这里如果保存了就不需要再减1了
             if self.labelList.count():
-                self.labelList.setCurrentItem(self.labelList.item(self.labelList.count()-1))
-                self.labelList.item(self.labelList.count()-1).setSelected(True)
+                self.labelList.setCurrentItem(self.labelList.item(self.labelList.count() - 1))
+                self.labelList.item(self.labelList.count() - 1).setSelected(True)
 
             self.canvas.setFocus(True)
             return True
         return False
 
     def showBoundingBoxFromAnnotationFile(self, filePath):
-        if self.defaultSaveDir is not None:
+        if self.defaultSaveDir is not None:  #
             basename = os.path.basename(
                 os.path.splitext(filePath)[0])
             xmlPath = os.path.join(self.defaultSaveDir, basename + XML_EXT)
-            txtPath = os.path.join(self.defaultSaveDir, basename + TXT_EXT)
+            # txtPath = os.path.join(self.defaultSaveDir, basename + TXT_EXT) # 不按单个文件读入
+            txtPath = self.defaultSaveDir + '/label.txt'  # 写死label文件
 
             """Annotation file priority:
             PascalXML > YOLO
@@ -1490,12 +1453,26 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadYOLOTXTByFilename(txtPath)
         else:
             xmlPath = os.path.splitext(filePath)[0] + XML_EXT
-            txtPath = os.path.splitext(filePath)[0] + TXT_EXT
+            txtPath = os.path.splitext(filePath)[0] + '/label.txt'  # 写死label文件
             if os.path.isfile(xmlPath):
                 self.loadPascalXMLByFilename(xmlPath)
             elif os.path.isfile(txtPath):
                 self.loadYOLOTXTByFilename(txtPath)
-    
+
+    def showBoundingBoxFromPPlabel(self, filePath):
+        # filePath格式 完整E:\\
+        path_list = filePath.split('\\')
+        imgidx = path_list[-2] + '/' + path_list[-1]
+        if imgidx not in self.PPlabel.keys():
+            return
+        shapes = []
+        for box in self.PPlabel[imgidx]:
+            shapes.append((box['transcription'], box['points'], None, None, box['difficult']))
+
+        print(shapes)
+        self.loadLabels(shapes)
+        self.canvas.verified = False  # 这句的含义？
+
     def validAnnoExist(self, filePath):
         if self.defaultSaveDir is not None:
             basename = os.path.basename(
@@ -1517,9 +1494,18 @@ class MainWindow(QMainWindow, WindowMixin):
             elif os.path.isfile(txtPath):
                 return True
 
+    def validFilestate(self, filePath):
+        # filePath 格式 path/img.jpg
+        if filePath not in self.fileStatedict.keys():
+            return False
+        elif self.fileStatedict[filePath] == 1:
+            return True
+        else:
+            return False  # 自动标记过但没保存
+
     def resizeEvent(self, event):
-        if self.canvas and not self.image.isNull()\
-           and self.zoomMode != self.MANUAL_ZOOM:
+        if self.canvas and not self.image.isNull() \
+                and self.zoomMode != self.MANUAL_ZOOM:
             self.adjustScale()
         super(MainWindow, self).resizeEvent(event)
 
@@ -1584,6 +1570,8 @@ class MainWindow(QMainWindow, WindowMixin):
         settings[SETTING_DRAW_SQUARE] = self.drawSquaresOption.isChecked()
         settings[SETTING_LABEL_FILE_FORMAT] = self.labelFileFormat
         settings.save()
+        self.saveFilestate()  # 保存图片状态
+        self.savePPlabel()  # 标签
 
     def loadRecent(self, filename):
         if self.mayContinue():
@@ -1609,8 +1597,9 @@ class MainWindow(QMainWindow, WindowMixin):
             path = '.'
 
         dirpath = ustr(QFileDialog.getExistingDirectory(self,
-                                                       '%s - Save annotations to the directory' % __appname__, path,  QFileDialog.ShowDirsOnly
-                                                       | QFileDialog.DontResolveSymlinks))
+                                                        '%s - Save annotations to the directory' % __appname__, path,
+                                                        QFileDialog.ShowDirsOnly
+                                                        | QFileDialog.DontResolveSymlinks))
 
         if dirpath is not None and len(dirpath) > 1:
             self.defaultSaveDir = dirpath
@@ -1625,11 +1614,11 @@ class MainWindow(QMainWindow, WindowMixin):
             self.statusBar().show()
             return
 
-        path = os.path.dirname(ustr(self.filePath))\
+        path = os.path.dirname(ustr(self.filePath)) \
             if self.filePath else '.'
         if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
             filters = "Open Annotation XML file (%s)" % ' '.join(['*.xml'])
-            filename = ustr(QFileDialog.getOpenFileName(self,'%s - Choose a xml file' % __appname__, path, filters))
+            filename = ustr(QFileDialog.getOpenFileName(self, '%s - Choose a xml file' % __appname__, path, filters))
             if filename:
                 if isinstance(filename, (tuple, list)):
                     filename = filename[0]
@@ -1644,35 +1633,39 @@ class MainWindow(QMainWindow, WindowMixin):
             defaultOpenDirPath = self.lastOpenDir
         else:
             defaultOpenDirPath = os.path.dirname(self.filePath) if self.filePath else '.'
-        if silent!=True :
+        if silent != True:
             targetDirPath = ustr(QFileDialog.getExistingDirectory(self,
-                                                         '%s - Open Directory' % __appname__, defaultOpenDirPath,
-                                                         QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks))
+                                                                  '%s - Open Directory' % __appname__,
+                                                                  defaultOpenDirPath,
+                                                                  QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks))
         else:
             targetDirPath = ustr(defaultOpenDirPath)
         self.lastOpenDir = targetDirPath
         self.importDirImages(targetDirPath)
 
-    def importDirImages(self, dirpath): # 从dir中读入图片到listWidget中
+    def importDirImages(self, dirpath):  # 从dir中读入图片到listWidget中
         if not self.mayContinue() or not dirpath:
             return
 
         self.lastOpenDir = dirpath
         self.dirname = dirpath
+        if self.defaultSaveDir is None:
+            self.loadFilestate(os.path.dirname(dirpath))  # ADD 还需要确保其他地方调用时不会冲突
+            self.loadPPlabel(os.path.dirname(dirpath))
         self.filePath = None
         self.fileListWidget.clear()
-        self.mImgList = self.scanAllImages(dirpath) # 将所有文件读入mImgList中
+        self.mImgList = self.scanAllImages(dirpath)  # 将所有文件读入mImgList中
         self.openNextImg()
-        for imgPath in self.mImgList: # 将文件路径读入item
-            # TODO 刚开始读入的时候应该不显示图标 但留一个地方
-            # item = QtWidgets.QListWidgetItem(QtGui.QIcon('C:\\Users\Administrator\Desktop\xxx.jpg'), '新建项目')
-            if self.validAnnoExist(imgPath) is True:
-                item = QListWidgetItem(newIcon('done'), imgPath) # item即为file name的控件
+        # item = QtWidgets.QListWidgetItem(QtGui.QIcon('C:\\Users\Administrator\Desktop\xxx.jpg'), '新建项目')
+        for imgPath in self.mImgList:  # 将文件路径读入item
+            filename = os.path.basename(imgPath)  # imgPath E:\\全路径，可以改用filename
+            if self.validFilestate(imgPath) is True:
+                item = QListWidgetItem(newIcon('done'), filename)  # item即为file name的控件
             else:
-                item = QListWidgetItem(newIcon('close'), imgPath)
+                item = QListWidgetItem(newIcon('close'), filename)
             self.fileListWidget.addItem(item)
 
-        print('dirPath in importDirImages is',dirpath)
+        print('dirPath in importDirImages is', dirpath)
         self.iconlist.clear()
         self.additems(dirpath)
         # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
@@ -1745,10 +1738,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 filename = self.mImgList[currIndex + 1]
 
         if filename:
-            print('file name in openNext is ',filename)
+            print('file name in openNext is ', filename)
             self.loadFile(filename)
 
-    def openFile(self, _value=False): # 打开单张
+    def openFile(self, _value=False):  # 打开单张
         if not self.mayContinue():
             return
         path = os.path.dirname(ustr(self.filePath)) if self.filePath else '.'
@@ -1763,34 +1756,42 @@ class MainWindow(QMainWindow, WindowMixin):
         self.filePath = None
         self.fileListWidget.clear()
         self.iconlist.clear()
-        self.mImgList = [filename] # 将所有文件读入mImgList中
+        self.mImgList = [filename]  # 将所有文件读入mImgList中
         self.openNextImg()
-        if self.validAnnoExist(filename) is True:
+        if self.validFilestate(filename) is True:  # 这里标记改为读入文件
             item = QListWidgetItem(newIcon('done'), filename)
+            self.setClean()  # 默认不需要保存
         else:
             item = QListWidgetItem(newIcon('close'), filename)
+            self.setDirty()
         self.fileListWidget.addItem(filename)
         self.additems(None)
-        print('opened image is',filename)
-        
+        print('opened image is', filename)
 
     def updateFileListIcon(self, filename):
         pass
 
     def saveFile(self, _value=False, mode='Manual'):
+        # mode 为Auto 不更新状态，与Manual 更新状态 两种， 默认为不更新状态，只有手动点击Save才保存
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
             if self.filePath:
-                imgFileName = os.path.basename(self.filePath)
-                savedFileName = os.path.splitext(imgFileName)[0]
-                savedPath = os.path.join(ustr(self.defaultSaveDir), savedFileName)
-                self._saveFile(savedPath, mode=mode)
-        else:
+                # imgFileName = os.path.basename(self.filePath)
+                # savedFileName = os.path.splitext(imgFileName)[0]
+                # savedPath = os.path.join(ustr(self.defaultSaveDir), savedFileName)
+                # self._saveFile(savedPath, mode=mode)
+                # 这里输入直接改成 path/img.jpg
+                path_list = self.filePath.split('\\')
+                imgidx = path_list[-2] + '/' + path_list[-1]
+                self._saveFile(imgidx, mode=mode)
+
+        else:  # 如果没有设置则默认选择图片路径
             imgFileDir = os.path.dirname(self.filePath)
             imgFileName = os.path.basename(self.filePath)
             savedFileName = os.path.splitext(imgFileName)[0]
             savedPath = os.path.join(imgFileDir, savedFileName)
             self._saveFile(savedPath if self.labelFile
                            else self.saveFileDialog(removeExt=False), mode=mode)
+            # TODO：写入后都需要更新yolo类？
 
     def saveFileAs(self, _value=False):
         assert not self.image.isNull(), "cannot save empty image"
@@ -1809,15 +1810,15 @@ class MainWindow(QMainWindow, WindowMixin):
         if dlg.exec_():
             fullFilePath = ustr(dlg.selectedFiles()[0])
             if removeExt:
-                return os.path.splitext(fullFilePath)[0] # Return file path without the extension.
+                return os.path.splitext(fullFilePath)[0]  # Return file path without the extension.
             else:
                 return fullFilePath
         return ''
 
-    def _saveFile(self, annotationFilePath, mode='Manual'): # 根据路径保存标记文件，并在文件名前新增图标
+    def _saveFile(self, annotationFilePath, mode='Manual'):  # 根据路径保存标记文件，并在文件名前新增图标
         # Auto模式下不显示文件名前的标记
-        if mode == 'Manual': # 手动保存时才对图片状态进行改变（文件名称前显示图标）
-            if annotationFilePath and self.saveLabels(annotationFilePath): # 如果都存在
+        if mode == 'Manual':  # 手动保存时才对图片状态进行改变（文件名称前显示图标）
+            if annotationFilePath and self.saveLabels(annotationFilePath, mode=mode):  # 如果都存在
                 self.setClean()
                 self.statusBar().showMessage('Saved to  %s' % annotationFilePath)
                 self.statusBar().show()
@@ -1825,44 +1826,29 @@ class MainWindow(QMainWindow, WindowMixin):
                 currIndex = self.mImgList.index(self.filePath)
                 # item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex]) # 新增项
                 # item = QListWidgetItem(self.mImgList[currIndex])
-                # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
                 item = self.fileListWidget.item(currIndex)
                 item.setIcon(newIcon('done'))
-                print('infor in _saveFile are',currIndex, self.mImgList[currIndex])
+                # 文件状态与label
+                #  将状态设置为 1
+                self.fileStatedict[self.filePath] = 1
+                print('infor in _saveFile are', currIndex, self.mImgList[currIndex])
 
                 # 直接改变，找到当前item
                 # item_pre = self.fileListWidget.currentItem()
-                item_prou = self.fileListWidget.item(currIndex) # 之前项
+                item_prou = self.fileListWidget.item(currIndex)  # 之前项
                 # self.fileListWidget.removeItemWidget(self.fileListWidget.row(item_pre)) # 删不掉
-                self.fileListWidget.takeItem(self.fileListWidget.row(item_prou)) # 使用take 删除
+                self.fileListWidget.takeItem(self.fileListWidget.row(item_prou))  # 使用take 删除
                 print(item_prou)
                 print('self.filePath is ', self.filePath)
                 # self.fileListWidget.currentItemChanged(item, item_pre) # 用了就崩溃
 
                 self.fileListWidget.insertItem(int(currIndex), item)
 
-        elif mode == 'Auto': # 全部自动识别下的保存
-            if annotationFilePath and self.saveLabels_auto(annotationFilePath):
+        elif mode == 'Auto':  # 全部自动识别下的保存,不更新图片状态
+            if annotationFilePath and self.saveLabels(annotationFilePath, mode=mode):
                 self.setClean()
                 self.statusBar().showMessage('Saved to  %s' % annotationFilePath)
                 self.statusBar().show()
-                # currIndex = self.mImgList.index(self.filePath)
-                # item = QListWidgetItem(QtGui.QIcon('./Thano.jpg'), self.mImgList[currIndex])
-                # # item = QListWidgetItem(self.mImgList[currIndex])
-                # # item.setIcon(QIcon(QPixmap('C://Users\Admin\Pictures.jpg')))
-                # print('infor in _saveFile are', currIndex, self.mImgList[currIndex])
-                #
-                # # 直接改变，找到当前item
-                # item_pre = self.fileListWidget.currentItem()
-                # item_prou = self.fileListWidget.item(currIndex)
-                # # self.fileListWidget.removeItemWidget(self.fileListWidget.row(item_pre)) # 删不掉
-                # self.fileListWidget.takeItem(self.fileListWidget.row(item_pre))  # 使用take 删除
-                # print(item_pre, item_prou)
-                # print('self.filePath is ', self.filePath)
-                # # self.fileListWidget.currentItemChanged(item, item_pre) # 用了就崩溃
-                #
-                # self.fileListWidget.insertItem(int(currIndex), item)
-
 
     def closeFile(self, _value=False):
         if not self.mayContinue():
@@ -1876,8 +1862,14 @@ class MainWindow(QMainWindow, WindowMixin):
     def deleteImg(self):
         deletePath = self.filePath
         if deletePath is not None:
-            self.openNextImg()
             os.remove(deletePath)
+            if self.filePath in self.fileStatedict.keys():
+                self.fileStatedict.pop(self.filePath)  # 全路径
+            path_list = self.filePath.split('\\')
+            imgidx = path_list[-2] + '/' + path_list[-1]
+            if imgidx in self.PPlabel.keys():
+                self.PPlabel.pop(imgidx)  # 图片路径
+            self.openNextImg()
             self.importDirImages(self.lastOpenDir)
 
     def resetAll(self):
@@ -1886,7 +1878,7 @@ class MainWindow(QMainWindow, WindowMixin):
         proc = QProcess()
         proc.startDetached(os.path.abspath(__file__))
 
-    def mayContinue(self): #
+    def mayContinue(self):  #
         if not self.dirty:
             return True
         else:
@@ -1977,17 +1969,24 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.verified = tVocParseReader.verified
 
     def loadYOLOTXTByFilename(self, txtPath):
-        if self.filePath is None:
+        if self.filePath is None:  # \\
             return
         if os.path.isfile(txtPath) is False:
             return
 
         self.set_format(FORMAT_YOLO)
-        tYoloParseReader = YoloReader(txtPath, self.image)
-        shapes = tYoloParseReader.getShapes()
-        print (shapes)
-        self.loadLabels(shapes)
-        self.canvas.verified = tYoloParseReader.verified
+
+        filepathsplit = self.filePath.split('\\')[-2:]
+        imglabelidx = filepathsplit[0] + '/' + filepathsplit[1]
+        # if self.PPreader is None: # 第一次运行时实例化
+        self.PPreader = YoloReader(txtPath, self.image)  # 从self.filePath中定位图片 #：TODO 可以改成不太频繁的写入读取
+        if self.PPreader.isExist(imglabelidx) is False:  # 如果不存在label直接返回
+            return
+        else:
+            shapes = self.PPreader.getShapes(imglabelidx)  # 选择文件
+            print(shapes)
+            self.loadLabels(shapes)
+            self.canvas.verified = self.PPreader.verified  # 这句的含义？
 
     def copyPreviousBoundingBoxes(self):
         currIndex = self.mImgList.index(self.filePath)
@@ -2004,39 +2003,32 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.setDrawingShapeToSquare(self.drawSquaresOption.isChecked())
 
     def additems(self, dirpath):
-        # 读取和显示缩略图        
+        # 读取和显示缩略图
         for file in self.mImgList:
             pix = QPixmap(file)
             _, filename = os.path.split(file)
             filename, _ = os.path.splitext(filename)
             # item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),filename[:10])
-            item.setToolTip(file)
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),
+                                   filename[:10])
+            item.setToolTip(file)  # TODO: 每个都设置了tooltip
             self.iconlist.addItem(item)
 
     def autoRecognition(self):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
-        print('Using model from ',self.model)
+        print('Using model from ', self.model)
         if self.model == 'paddle':
             # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
             # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,rec=False,
+            ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, rec=False,
                             lang="ch")  # need to run only once to download and load model into memory
-
-        for Imgpath in self.mImgList:
+        uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
+        for Imgpath in uncheckedList:
             print('ImgPath in autoRec is ', Imgpath)
 
-            # 模型选择
-            # if self.model == 'ali':
-            #     # 对数据处理，获得标签
-            #     result = demo(Imgpath)
-            #     # 阿里云部分
-            #     self.result_dic = eval(result.replace('true', 'True')) # 直接通过self.result_dic来传递结果到保存函数
-
-            if self.model == 'paddle':
-                self.result_dic = ocr.ocr(Imgpath, cls=True)
-                print(self.result_dic)
+            self.result_dic = ocr.ocr(Imgpath, cls=True)
+            print(self.result_dic)
 
             # 结果保存
             if self.result_dic is None or len(self.result_dic) == 0:
@@ -2047,17 +2039,12 @@ class MainWindow(QMainWindow, WindowMixin):
                 # 保存
                 self.saveFile(mode='Auto')
 
-
-
+        self.loadFile(self.filePath)  # ADD
+        self.setDirty()
 
     def reRecognition(self):
-        # 针对单张图片
-        # print('filePath in autoRecognition is', self.filePath)
-        ocr = PaddleOCR(use_pdserving=False,use_angle_cls=True,det=False,lang="ch")
-        # self.Path是否会不存在？
-
         # 读入当前图片
-        img = Image.open(self.filePath)
+        img = cv2.imread(self.filePath)
 
         # TODO: 这里需要只预测的功能，需要将移动之后的框参数传入
         # 读取 self.canvas.shapes 中的信息 然后再接一个识别模型
@@ -2067,20 +2054,39 @@ class MainWindow(QMainWindow, WindowMixin):
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
-                box = [(int(p.x()), int(p.y())) for p in shape.points]
-                # print(box,box[0][1],box[2][1], box[0][0],box[2][0])
+                box = [np.array([int(p.x()), int(p.y())]) for p in shape.points]
                 assert len(box) == 4
-                # crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]] # y0 y1,x0 x1
-                crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
-                # 四点框还需要补全
-                # JPG不支持透明度，丢弃Alpha色彩空间
-                crop_img=crop_img.convert('RGB')
-                crop_img.save('./crop_img_tmp.jpg')
-                result = ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]]
-                # 增加一个判断条件，处理空框标注残留问题
+                # if box[0][1] == box[1][1]:  # 矩形
+                #     # crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
+                #     crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]]  # y0 y1,x0 x1
+                # else:
+                #     rows, cols = crop_img.shape[:2]
+                #     box_w = np.linalg.norm(box[0] - box[1])
+                #     box_h = np.linalg.norm(box[0] - box[3])
+                #     pts1 = np.float32([box[0], box[1], box[3]])  # 原点
+                #     pts2 = np.float32([box[0], [box[0][0] + box_w, box[0][1]], [box[0][0], box[0][1] + box_h]])
+                #     M = cv2.getAffineTransform(pts1, pts2)
+                #     # 第三个参数：变换后的图像大小
+                #     crop_img = cv2.warpAffine(img, M, (col, row))
+                #     cv2.imwrite('./crop_img_tmp_1.jpg', crop_img)
+                #     delta_h, delta_w = box[0][1] + box_h, box[0][0] + box_w
+                #     crop_img = img[box[0][1]:delta_h if delta_h < rows else rows,
+                #                box[0][0]:delta_w if delta_w < cols else cols]  # 超出范围
+                #     # crop_img = img[box[0][1]:(box[0][1] + box_h), box[0][0]:(box[0][0] + box_w)]
+                #
+                # # 四点框还需要补全
+                # # JPG不支持透明度，丢弃Alpha色彩空间
+                # # crop_img=crop_img.convert('RGB')
+                # crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
+                # cv2.imwrite('./crop_img_tmp.jpg', crop_img)
+                # # crop_img.save('./crop_img_tmp.jpg')
+                # # result = self.ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]] cls默认为False
+                img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+                result = self.ocr.ocr(img_crop, cls=True, det=False)
+
                 if result[0][0] is not '':
                     # 再将格式改回，增加box
-                    result.insert(0,box)
+                    result.insert(0, box)
                     print('result in reRec is ', result)
 
                     self.result_dic.append(result)
@@ -2095,9 +2101,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 # self.filePath 存在
                 # self.filePath = Imgpath  # 文件路径
                 # 保存
+                self.saveFile(mode='Auto')
+                self.loadFile(self.filePath)  # 重新读入时没有读入
                 self.setDirty()
-                # self.saveFile(mode='Auto')
-            elif len(self.result_dic)==len(self.canvas.shapes) and rec_flag == 0:
+            elif len(self.result_dic) == len(self.canvas.shapes) and rec_flag == 0:
                 QMessageBox.information(self, "Information", "Not any change!")
             else:
                 print('Can not recgonition in ', self.filePath)
@@ -2105,11 +2112,60 @@ class MainWindow(QMainWindow, WindowMixin):
         else:
             print('Draw a box!')
 
-        # TODO: 重新载入文件 auto recognition也一样
-        self.loadFile(self.filePath)
 
     def autolcm(self):
         print('autolabelchoosemodel')
+
+    def loadFilestate(self, saveDir):
+        # ADD file state path： 不存在则新建 存在则读入
+        # 全文件名
+        self.fileStatepath = saveDir + '/fileState.txt'  # 始终出现在Paddle中
+        self.fileStatedict = {}  # 保存图片状态
+        if not os.path.exists(self.fileStatepath):
+            f = open(self.fileStatepath, 'w', encoding='utf-8')
+        # 如果存在则读取 不存在则创建
+        else:
+            with open(self.fileStatepath, 'r', encoding='utf-8') as f:
+                states = f.readlines()
+                for each in states:
+                    file, state = each.split('\t')  # filename \t 后期可能会增加difficult选项
+                    self.fileStatedict[file] = 1  # int(state.split('\n')[0])
+        f.close()
+
+    def saveFilestate(self):
+        with open(self.fileStatepath, 'w', encoding='utf-8') as f:
+            for key in self.fileStatedict:
+                f.write(key + '\t')
+                f.write(str(self.fileStatedict[key]) + '\n')
+        f.close()
+
+    def loadPPlabel(self, saveDir):
+        # ADD file state path：
+        self.PPlabelpath = saveDir + '/label.txt'  # 始终出现在Paddle中
+        self.PPlabel = {}  # 保存图片状态
+        if not os.path.exists(self.PPlabelpath):
+            f = open(self.PPlabelpath, 'w', encoding='utf-8')
+        # 如果存在则读取 不存在则创建
+        else:
+            with open(self.PPlabelpath, 'r', encoding='utf-8') as f:
+                data = f.readlines()
+                for each in data:
+                    file, label = each.split('\t')  # filename \t 后期可能会增加difficult选项
+                    if label:
+                        label = label.replace('false', 'False')  # 对 difficult的状态替换
+                        self.PPlabel[file] = eval(label)
+                    else:
+                        self.PPlabel[file] = []
+
+        f.close()
+
+    def savePPlabel(self):
+        # 关闭界面后整体写入txt
+        with open(self.PPlabelpath, 'w', encoding='utf-8') as f:
+            for key in self.PPlabel:
+                f.write(key + '\t')
+                f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
+        f.close()
 
 
 def inverted(color):
@@ -2152,6 +2208,7 @@ def main():
     '''construct main app and run it'''
     app, _win = get_main_app(sys.argv)
     return app.exec_()
+
 
 if __name__ == '__main__':
     sys.exit(main())
