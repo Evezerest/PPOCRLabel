@@ -609,7 +609,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
+                   (opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, saveAs, close, resetAll, deleteImg, quit))
 
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
@@ -972,6 +972,32 @@ class MainWindow(QMainWindow, WindowMixin):
         if not item:
             return
         text = self.labelDialog.popUp(item.text())  # 设置文字
+        # 判断输入是否符合图片大小
+        imageSize = str(self.image.size())
+        imageSize = imageSize[imageSize.rfind('(')+1:-1]
+        imageSize = imageSize.split(", ")
+        width = imageSize[0]
+        height = imageSize[1]
+        width = float(width)
+        height = float(height)
+        texts = text.strip( '[()]' )
+        texts = texts.replace(" ", "")
+        texts = texts.split("),(")
+        if len(texts) < 4:
+            msg_box = QMessageBox(QMessageBox.Warning, '警告', '请输入正确的格式')
+            msg_box.exec_()
+            return
+        alltext = ""
+        for name in texts:
+            lable = name.split(',')
+            lable[0] = float(lable[0])
+            lable[1] = float(lable[1])
+            if lable[0] > width or lable[0] < 0 or lable[1] > height or lable[1] < 0:
+                msg_box = QMessageBox(QMessageBox.Warning, '警告', '超出图片范围')
+                msg_box.exec_()
+                return
+            alltext = alltext + "(" + str(int(lable[0])) + "," + str(int(lable[1])) + "),"
+        text = "[" + alltext[:-1] + "]"
         if text is not None:
             item.setText(text)  # 这里会连接到labelItemChanged
             item.setBackground(generateColorByText(text))
@@ -1062,7 +1088,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('item in add label is ',[(p.x(), p.y()) for p in shape.points], shape.label)
 
         # ADD for box
-        item = HashableQListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))  # 这里可以转化一下
+        item = HashableQListWidgetItem(str([(int(p.x()), int(p.y())) for p in shape.points])) # 这里可以转化一下
         # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)  # 状态
