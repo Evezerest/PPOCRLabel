@@ -110,6 +110,7 @@ def natural_sort(list, key=lambda s:s):
     sort_key = get_alphanum_key_func(key)
     list.sort(key=sort_key)
 
+
 def get_rotate_crop_image(img, points):
 
     try:

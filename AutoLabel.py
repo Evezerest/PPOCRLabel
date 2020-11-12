@@ -2,21 +2,15 @@
 # -*- coding: utf-8 -*-
 # 准备只将原来的界面布局改掉，但发现比较困难
 import argparse
+import ast
 import codecs
-import distutils.spawn
 import os.path
 import platform
-import re
-import sys
 import subprocess
-from PIL import Image
-import piexif
-import ast
+import sys
 from functools import partial
-from collections import defaultdict
-import json
-import cv2
-import numpy as np
+
+from PIL import Image
 
 # 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -43,8 +37,6 @@ except ImportError:
     from PyQt4.QtCore import *
 
 from combobox import ComboBox
-from libs.resources import *
-# from resources import *
 from libs.constants import *
 from libs.utils import *
 from libs.settings import Settings
@@ -55,7 +47,7 @@ from libs.zoomWidget import ZoomWidget
 from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
 from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
-from libs.toolBar import ToolBar, ToolButton
+from libs.toolBar import ToolBar
 from libs.pascal_voc_io import PascalVocReader
 from libs.pascal_voc_io import XML_EXT
 from libs.yolo_io import YoloReader
@@ -113,6 +105,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelHist = []
         self.lastOpenDir = None
         self.result_dic = []
+        self.currIndex = 0
+
 
         # Whether we need to save or not.
         self.dirty = False
@@ -2054,36 +2048,11 @@ class MainWindow(QMainWindow, WindowMixin):
             self.result_dic = []
             rec_flag = 0
             for shape in self.canvas.shapes:
-                box = [np.array([int(p.x()), int(p.y())]) for p in shape.points]
+                box = [[int(p.x()), int(p.y())] for p in shape.points]
                 assert len(box) == 4
-                # if box[0][1] == box[1][1]:  # 矩形
-                #     # crop_img = img.crop((box[0][0], box[0][1], box[2][0], box[2][1]))
-                #     crop_img = img[box[0][1]:box[2][1], box[0][0]:box[2][0]]  # y0 y1,x0 x1
-                # else:
-                #     rows, cols = crop_img.shape[:2]
-                #     box_w = np.linalg.norm(box[0] - box[1])
-                #     box_h = np.linalg.norm(box[0] - box[3])
-                #     pts1 = np.float32([box[0], box[1], box[3]])  # 原点
-                #     pts2 = np.float32([box[0], [box[0][0] + box_w, box[0][1]], [box[0][0], box[0][1] + box_h]])
-                #     M = cv2.getAffineTransform(pts1, pts2)
-                #     # 第三个参数：变换后的图像大小
-                #     crop_img = cv2.warpAffine(img, M, (col, row))
-                #     cv2.imwrite('./crop_img_tmp_1.jpg', crop_img)
-                #     delta_h, delta_w = box[0][1] + box_h, box[0][0] + box_w
-                #     crop_img = img[box[0][1]:delta_h if delta_h < rows else rows,
-                #                box[0][0]:delta_w if delta_w < cols else cols]  # 超出范围
-                #     # crop_img = img[box[0][1]:(box[0][1] + box_h), box[0][0]:(box[0][0] + box_w)]
-                #
-                # # 四点框还需要补全
-                # # JPG不支持透明度，丢弃Alpha色彩空间
-                # # crop_img=crop_img.convert('RGB')
-                # crop_img = cv2.cvtColor(crop_img, cv2.COLOR_BGR2RGB)
-                # cv2.imwrite('./crop_img_tmp.jpg', crop_img)
-                # # crop_img.save('./crop_img_tmp.jpg')
-                # # result = self.ocr.ocr('./crop_img_tmp.jpg', det=False) # [['XX', 0.89]] cls默认为False
                 img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
                 result = self.ocr.ocr(img_crop, cls=True, det=False)
-
+                # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
                     # 再将格式改回，增加box
                     result.insert(0, box)
@@ -2211,4 +2180,11 @@ def main():
 
 
 if __name__ == '__main__':
+    
+    resource_file = './libs/resources.py'
+    if not os.path.exists(resource_file):
+        output = os.system('pyrcc5 -o libs/resources.py resources.qrc')
+        assert output is 0, "operate the cmd have some problems ,please check  whether there is a in the lib " \
+                            "directory resources.py "
+    import libs.resources
     sys.exit(main())
