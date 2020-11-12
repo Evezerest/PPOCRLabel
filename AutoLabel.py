@@ -390,8 +390,8 @@ class MainWindow(QMainWindow, WindowMixin):
         opendir = action(getStr('openDir'), self.openDirDialog,
                          'Ctrl+u', 'open', getStr('openDir'))
 
-        copyPrevBounding = action(getStr('copyPrevBounding'), self.copyPreviousBoundingBoxes,
-                                  'Ctrl+v', 'paste', getStr('copyPrevBounding'))
+        # copyPrevBounding = action(getStr('copyPrevBounding'), self.copyPreviousBoundingBoxes,
+        #                           'Ctrl+v', 'paste', getStr('copyPrevBounding'))
 
         changeSavedir = action(getStr('changeSaveDir'), self.changeSavedirDialog,
                                'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'))
@@ -419,10 +419,10 @@ class MainWindow(QMainWindow, WindowMixin):
         #                      'format_voc' if isUsingPascalVoc else 'format_yolo',
         #                      getStr('changeSaveFormat'), enabled=True)
 
-        saveAs = action(getStr('saveAs'), self.saveFileAs,
-                        'Ctrl+Shift+S', 'save-as', getStr('saveAsDetail'), enabled=False)
+        # saveAs = action(getStr('saveAs'), self.saveFileAs,
+        #                 'Ctrl+Shift+S', 'save-as', getStr('saveAsDetail'), enabled=False)
 
-        close = action(getStr('closeCur'), self.closeFile, 'Ctrl+W', 'close', getStr('closeCurDetail'))
+        # close = action(getStr('closeCur'), self.closeFile, 'Ctrl+W', 'close', getStr('closeCurDetail'))
 
         deleteImg = action(getStr('deleteImg'), self.deleteImg, 'Ctrl+D', 'close', getStr('deleteImgDetail'))
 
@@ -562,16 +562,16 @@ class MainWindow(QMainWindow, WindowMixin):
         self.drawSquaresOption.triggered.connect(self.toogleDrawSquare)
 
         # Store actions for further handling.
-        self.actions = struct(save=save, saveAs=saveAs, open=open, close=close, resetAll=resetAll, deleteImg=deleteImg,
+        self.actions = struct(save=save,  open=open,  resetAll=resetAll, deleteImg=deleteImg,
                               lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
-                              # save_format=save_format,
+                              # save_format=save_format, saveAs=saveAs,close=close,
                               createMode=createMode, editMode=editMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
                               fitWindow=fitWindow, fitWidth=fitWidth,
                               zoomActions=zoomActions,
                               fileMenuActions=(
-                                  open, opendir, save, saveAs, close, resetAll, quit),
+                                  open, opendir, save,  resetAll, quit), # saveAs,close,
                               beginner=(), advanced=(),
                               editMenu=(edit, copy, delete,
                                         None, color1, self.drawSquaresOption, createpoly),  # 编辑菜单
@@ -579,8 +579,8 @@ class MainWindow(QMainWindow, WindowMixin):
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
-                                  close, create, createMode, editMode),
-                              onShapesPresent=(saveAs, hideAll, showAll))
+                                   create, createMode, editMode),#close,
+                              onShapesPresent=(hideAll, showAll)) # saveAs,
         # 菜单栏
         self.menus = struct(
             file=self.menu('&File'),
@@ -609,7 +609,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (opendir, copyPrevBounding, changeSavedir, openAnnotation, self.menus.recentFiles, save, save_format, saveAs, close, resetAll, deleteImg, quit))
+                   (opendir,  changeSavedir, openAnnotation, save,  resetAll, deleteImg, quit))
+        #copyPrevBounding,close,saveAs,self.menus.recentFiles,
 
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
@@ -988,17 +989,25 @@ class MainWindow(QMainWindow, WindowMixin):
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
-        # a = os.path.join(self.dirname, item.text())
-        currIndex = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))  # 加入一个base
-        if currIndex < len(self.mImgList):
-            filename = self.mImgList[currIndex]
+        chosenIdx = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
+        if self.currIndex == chosenIdx:
+            pass
+        else:
+            self.currIndex = chosenIdx
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))  # TODO:两种形式那种快？
-        if currIndex < len(self.mImgList):
-            filename = self.mImgList[currIndex]
+        # currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))  # TODO:两种形式那种快？
+        # if currIndex < len(self.mImgList):
+        #     filename = self.mImgList[currIndex]
+        chosenIdx = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
+        if self.currIndex == chosenIdx:
+            pass
+        else:
+            self.currIndex = chosenIdx
+            filename = self.mImgList[self.currIndex]
             if filename:
                 self.loadFile(filename)
 
@@ -1673,6 +1682,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastOpenDir = dirpath
         self.dirname = dirpath
         if self.defaultSaveDir is None:
+            self.defaultSaveDir = os.path.dirname(dirpath)
             self.loadFilestate(os.path.dirname(dirpath))  # ADD 还需要确保其他地方调用时不会冲突
             self.loadPPlabel(os.path.dirname(dirpath))
         self.filePath = None
@@ -2002,8 +2012,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.set_format(FORMAT_YOLO)
 
-        filepathsplit = self.filePath.split('\\')[-2:]
-        imglabelidx = filepathsplit[0] + '/' + filepathsplit[1]
+        imglabelidx = self.getImglabelidx(self.filePath)
         # if self.PPreader is None: # 第一次运行时实例化
         self.PPreader = YoloReader(txtPath, self.image)  # 从self.filePath中定位图片 #：TODO 可以改成不太频繁的写入读取
         if self.PPreader.isExist(imglabelidx) is False:  # 如果不存在label直接返回
@@ -2040,6 +2049,11 @@ class MainWindow(QMainWindow, WindowMixin):
             item.setToolTip(file)  # TODO: 每个都设置了tooltip
             self.iconlist.addItem(item)
 
+    def getImglabelidx(self, filePath):
+        # 将全路径改为半路径
+        filepathsplit = filePath.split('\\')[-2:]
+        return filepathsplit[0] + '/' + filepathsplit[1]
+
     def autoRecognition(self):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
@@ -2051,7 +2065,7 @@ class MainWindow(QMainWindow, WindowMixin):
                             lang="ch")  # need to run only once to download and load model into memory
             
         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
-        self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=uncheckedList)
+        self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
         self.autoDialog.popUp()
         
 
@@ -2155,11 +2169,13 @@ class MainWindow(QMainWindow, WindowMixin):
         f.close()
 
     def savePPlabel(self):
-        # 关闭界面后整体写入txt
+        # 关闭界面后整体写入txt 按照path/img.jpg格式
+        savedfile = [self.getImglabelidx(i) for i in self.fileStatedict.keys()]
         with open(self.PPlabelpath, 'w', encoding='utf-8') as f:
             for key in self.PPlabel:
-                f.write(key + '\t')
-                f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
+                if key in savedfile:
+                    f.write(key + '\t')
+                    f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
         f.close()
 
 
