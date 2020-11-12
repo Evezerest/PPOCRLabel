@@ -3,6 +3,8 @@ from libs.ustr import ustr
 import hashlib
 import re
 import sys
+import cv2
+import numpy as np
 
 try:
     from PyQt5.QtGui import *
