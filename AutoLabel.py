@@ -94,7 +94,7 @@ class MainWindow(QMainWindow, WindowMixin):
         settings = self.settings
 
         # Load string bundle for i18n
-        self.stringBundle = StringBundle.getBundle(localeStr="zh-CN")
+        self.stringBundle = StringBundle.getBundle(localeStr="zh-CN") # 'en'
         getStr = lambda strId: self.stringBundle.getString(strId)
 
         # Save as Pascal voc xml
@@ -187,7 +187,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        # self.reRecogButton.setIcon(newIcon()) # TODO
+        # self.reRecogButton.setIcon(newIcon())
         # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
@@ -225,7 +225,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelList.itemDoubleClicked.connect(self.editLabel)
         # Connect to itemChanged to detect checkbox changes.
         self.labelList.itemChanged.connect(self.labelItemChanged)
-        self.labelListDock = QDockWidget('识别结果',self)
+        self.labelListDock = QDockWidget(getStr('recognitionResult'),self)
         self.labelListDock.setWidget(self.labelList)
         self.labelListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         listLayout.addWidget(self.labelListDock)
@@ -240,7 +240,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.BoxList.itemDoubleClicked.connect(self.editBox)  # 双击之后更改内容
         # Connect to itemChanged to detect checkbox changes.
         self.BoxList.itemChanged.connect(self.boxItemChanged)
-        self.BoxListDock = QDockWidget('检测框位置', self)
+        self.BoxListDock = QDockWidget(getStr('detectionBoxposition'), self)
         self.BoxListDock.setWidget(self.BoxList)
         self.BoxListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         listLayout.addWidget(self.BoxListDock)
@@ -396,8 +396,8 @@ class MainWindow(QMainWindow, WindowMixin):
         changeSavedir = action(getStr('changeSaveDir'), self.changeSavedirDialog,
                                'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'))
 
-        openAnnotation = action(getStr('openAnnotation'), self.openAnnotationDialog,
-                                'Ctrl+Shift+O', 'open', getStr('openAnnotationDetail'))
+        # openAnnotation = action(getStr('openAnnotation'), self.openAnnotationDialog, # 从xml label打开文件
+        #                         'Ctrl+Shift+O', 'open', getStr('openAnnotationDetail'))
 
         openNextImg = action(getStr('nextImg'), self.openNextImg,
                              'd', 'next', getStr('nextImgDetail'))
@@ -424,7 +424,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # close = action(getStr('closeCur'), self.closeFile, 'Ctrl+W', 'close', getStr('closeCurDetail'))
 
-        deleteImg = action(getStr('deleteImg'), self.deleteImg, 'Ctrl+D', 'close', getStr('deleteImgDetail'))
+        deleteImg = action(getStr('deleteImg'), self.deleteImg, 'Ctrl+D', 'close', getStr('deleteImgDetail'),
+                           enabled=True)
 
         resetAll = action(getStr('resetAll'), self.resetAll, None, 'resetall', getStr('resetAllDetail'))
 
@@ -496,14 +497,14 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('getStr is ', getStr('editLabel'))
         # Add:
 
-        AutoRec = action(getStr('autoRecognition'), self.autoRecognition, # 新加入按键
+        AutoRec = action(getStr('autoRecognition'), self.autoRecognition,
                       'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=False)
 
 
-        reRec = action(getStr('reRecognition'), self.reRecognition,  # 新加入按键
-                       'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=True)
+        reRec = action(getStr('reRecognition'), self.reRecognition,
+                       'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=False)
 
-        createpoly = action('Creat Polygon', self.createPolygon,
+        createpoly = action(getStr('creatPolygon'), self.createPolygon,
                             'p', 'new', 'Creat Polygon', enabled=True)  # ADD
 
         self.editButton.setDefaultAction(edit)
@@ -555,7 +556,7 @@ class MainWindow(QMainWindow, WindowMixin):
             self.popLabelListMenu)
 
         # Draw squares/rectangles
-        self.drawSquaresOption = QAction('Draw Squares', self)
+        self.drawSquaresOption = QAction(getStr('drawSquares'), self)
         self.drawSquaresOption.setShortcut('Ctrl+Shift+R')
         self.drawSquaresOption.setCheckable(True)
         self.drawSquaresOption.setChecked(settings.get(SETTING_DRAW_SQUARE, False))
@@ -573,8 +574,8 @@ class MainWindow(QMainWindow, WindowMixin):
                               fileMenuActions=(
                                   open, opendir, save,  resetAll, quit), # saveAs,close,
                               beginner=(), advanced=(),
-                              editMenu=(edit, copy, delete,
-                                        None, color1, self.drawSquaresOption, createpoly),  # 编辑菜单
+                              editMenu=(createpoly, edit, copy, delete,
+                                        None, color1, self.drawSquaresOption),  # 编辑菜单
                               beginnerContext=(create, edit, copy, delete),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
@@ -609,13 +610,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (opendir,  changeSavedir, openAnnotation, save,  resetAll, deleteImg, quit))
-        #copyPrevBounding,close,saveAs,self.menus.recentFiles,
+                   (opendir,  changeSavedir,  save,  resetAll, deleteImg, quit))
+        #copyPrevBounding,close,saveAs,self.menus.recentFiles,openAnnotation,
 
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
             #self.autoSaving,
-            self.singleClassMode,
+            # self.singleClassMode,
             self.displayLabelOption,
             labels, None,
             hideAll, showAll, None,
@@ -669,7 +670,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.recentFiles = recentFileQStringList = settings.get(SETTING_RECENT_FILES)
 
-        size = settings.get(SETTING_WIN_SIZE, QSize(600, 1000))
+        size = settings.get(SETTING_WIN_SIZE, QSize(1000, 700))
         position = QPoint(0, 0)
         saved_position = settings.get(SETTING_WIN_POSE, position)
         # Fix the multiple monitors issue
@@ -1190,7 +1191,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 # if len(box)==1: # 只有框
                 #     trans_dic = {"label": ' ', "points": box[0], 'difficult': False}
                 trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
-                if trans_dic["label"] is "" and mode == 'Auto':
+                if trans_dic["label"] is "" and mode == 'Auto': # 不加入自动识别无结果的标记
                     continue
                 shapes.append(trans_dic)
 
@@ -1432,7 +1433,7 @@ class MainWindow(QMainWindow, WindowMixin):
         #     if unicodeFilePath in self.mImgList:
 
         if unicodeFilePath and os.path.exists(unicodeFilePath):
-            if LabelFile.isLabelFile(unicodeFilePath):  # 是否是label文件
+            if LabelFile.isLabelFile(unicodeFilePath):  # 是否是label文件，这部分之后没用了
                 try:
                     self.labelFile = LabelFile(unicodeFilePath)  # 读入Label，输入png
                 except LabelFileError as e:
@@ -1724,7 +1725,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.changeFileFolder = True
         self.haveAutoReced = False
         self.AutoRecognition.setEnabled(True)
-        # AutoRec.setEnabled(True) # TODO: 刚开始时应该不能点击
+        self.reRecogButton.setEnabled(True)
 
     def verifyImg(self, _value=False):
         # Proceding next image without dialog if having any label
@@ -1838,8 +1839,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 # savedPath = os.path.join(ustr(self.defaultSaveDir), savedFileName)
                 # self._saveFile(savedPath, mode=mode)
                 # 这里输入直接改成 path/img.jpg
-                path_list = self.filePath.split('\\')
-                imgidx = path_list[-2] + '/' + path_list[-1]
+                imgidx = self.getImglabelidx(self.filePath)
                 self._saveFile(imgidx, mode=mode)
 
         else:  # 如果没有设置则默认选择图片路径
