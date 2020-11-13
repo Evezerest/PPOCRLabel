@@ -305,7 +305,7 @@ class MainWindow(QMainWindow, WindowMixin):
         hlayout.setContentsMargins(*m)
         self.preButton = QToolButton()
         self.preButton.setFixedHeight(100)
-        self.preButton.setText("prev")
+        self.preButton.setText(getStr("prevImg"))
         self.preButton.setIcon(newIcon("prev", 80))
         self.preButton.setIconSize(QSize(80, 80))
         self.preButton.clicked.connect(self.openPrevImg)
@@ -320,7 +320,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.nextButton = QToolButton()
         self.nextButton.setFixedHeight(100)
-        self.nextButton.setText("next")
+        self.nextButton.setText(getStr("nextImg"))
         self.nextButton.setIcon(newIcon("next", 80))
         self.nextButton.setIconSize(QSize(80, 80))
         self.nextButton.clicked.connect(self.openNextImg)
@@ -335,7 +335,7 @@ class MainWindow(QMainWindow, WindowMixin):
         iconListContainer = QWidget()
         iconListContainer.setLayout(hlayout)
         iconListContainer.setFixedHeight(100)
-        self.icondock = QDockWidget('iconList', self)
+        self.icondock = QDockWidget(getStr('iconList'), self)
         self.icondock.setObjectName('icons')
         self.icondock.setWidget(iconListContainer)
         self.icondock.setFeatures(QDockWidget.NoDockWidgetFeatures)
@@ -496,11 +496,11 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('getStr is ', getStr('editLabel'))
         # Add:
 
-        AutoRec = action('Auto Recognition', self.autoRecognition, # 新加入按键
+        AutoRec = action(getStr('autoRecognition'), self.autoRecognition, # 新加入按键
                       'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=False)
 
 
-        reRec = action('reRecognition', self.reRecognition,  # 新加入按键
+        reRec = action(getStr('reRecognition'), self.reRecognition,  # 新加入按键
                        'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=True)
 
         createpoly = action('Creat Polygon', self.createPolygon,
@@ -583,11 +583,11 @@ class MainWindow(QMainWindow, WindowMixin):
                               onShapesPresent=(hideAll, showAll)) # saveAs,
         # 菜单栏
         self.menus = struct(
-            file=self.menu('&File'),
-            edit=self.menu('&Edit'),
-            view=self.menu('&View'),
+            file=self.menu('&'+getStr('mfile')),
+            edit=self.menu('&'+getStr('medit')),
+            view=self.menu('&'+getStr('mview')),
             autolabel=self.menu('&PaddleOCR'),
-            help=self.menu('&Help'),
+            help=self.menu('&'+getStr('mhelp')),
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
 
