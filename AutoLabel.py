@@ -591,10 +591,10 @@ class MainWindow(QMainWindow, WindowMixin):
             recentFiles=QMenu('Open &Recent'),
             labelList=labelMenu)
 
-        # Auto saving : Enable auto saving if pressing next
-        self.autoSaving = QAction(getStr('autoSaveMode'), self)
-        self.autoSaving.setCheckable(True)
-        self.autoSaving.setChecked(settings.get(SETTING_AUTO_SAVE, False))  # 默认关闭
+        # # Auto saving : Enable auto saving if pressing next
+        # self.autoSaving = QAction(getStr('autoSaveMode'), self)
+        # self.autoSaving.setCheckable(True)
+        # self.autoSaving.setChecked(settings.get(SETTING_AUTO_SAVE, False))  # 默认关闭
         # Sync single class mode from PR#106
         self.singleClassMode = QAction(getStr('singleClsMode'), self)
         self.singleClassMode.setShortcut("Ctrl+Shift+S")
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
-            self.autoSaving,
+            #self.autoSaving,
             self.singleClassMode,
             self.displayLabelOption,
             labels, None,
@@ -669,7 +669,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.recentFiles = recentFileQStringList = settings.get(SETTING_RECENT_FILES)
 
-        size = settings.get(SETTING_WIN_SIZE, QSize(600, 500))
+        size = settings.get(SETTING_WIN_SIZE, QSize(600, 1000))
         position = QPoint(0, 0)
         saved_position = settings.get(SETTING_WIN_POSE, position)
         # Fix the multiple monitors issue
@@ -973,32 +973,26 @@ class MainWindow(QMainWindow, WindowMixin):
         if not item:
             return
         text = self.labelDialog.popUp(item.text())  # 设置文字
+        
         # 判断输入是否符合图片大小
         imageSize = str(self.image.size())
-        imageSize = imageSize[imageSize.rfind('(')+1:-1]
-        imageSize = imageSize.split(", ")
-        width = imageSize[0]
-        height = imageSize[1]
-        width = float(width)
-        height = float(height)
-        texts = text.strip( '[()]' )
-        texts = texts.replace(" ", "")
-        texts = texts.split("),(")
-        if len(texts) < 4:
+        width, height = self.image.width(), self.image.height()
+        try:
+            text_list = eval(text)
+        except:
             msg_box = QMessageBox(QMessageBox.Warning, '警告', '请输入正确的格式')
             msg_box.exec_()
             return
-        alltext = ""
-        for name in texts:
-            lable = name.split(',')
-            lable[0] = float(lable[0])
-            lable[1] = float(lable[1])
-            if lable[0] > width or lable[0] < 0 or lable[1] > height or lable[1] < 0:
+        if len(text_list) < 4:
+            msg_box = QMessageBox(QMessageBox.Warning, '警告', '请输入4个点的坐标')
+            msg_box.exec_()
+            return
+        for box in text_list:
+            if box[0] > width or box[0] < 0 or box[1] > height or box[1] < 0:
                 msg_box = QMessageBox(QMessageBox.Warning, '警告', '超出图片范围')
                 msg_box.exec_()
                 return
-            alltext = alltext + "(" + str(int(lable[0])) + "," + str(int(lable[1])) + "),"
-        text = "[" + alltext[:-1] + "]"
+
         if text is not None:
             item.setText(text)  # 这里会连接到labelItemChanged
             item.setBackground(generateColorByText(text))
@@ -1028,7 +1022,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))  # TODO:两种形式那种快？
         # if currIndex < len(self.mImgList):
         #     filename = self.mImgList[currIndex]
-        chosenIdx = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
+        chosenIdx = self.mImgList.index(ustr(os.path.join(item.toolTip())))
+        # chosenIdx = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
         if self.currIndex == chosenIdx:
             pass
         else:
@@ -1519,8 +1514,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def showBoundingBoxFromPPlabel(self, filePath):
         # filePath格式 完整E:\\
-        path_list = filePath.split('\\')
-        imgidx = path_list[-2] + '/' + path_list[-1]
+        imgidx = self.getImglabelidx(filePath)
         if imgidx not in self.PPlabel.keys():
             return
         shapes = []
@@ -1554,11 +1548,11 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def validFilestate(self, filePath):
         # filePath 格式 path/img.jpg
-        if filePath not in self.fileStatedict.keys():
-            return False
-        elif self.fileStatedict[filePath] == 1:
+        if filePath not in self.fileStatedict.keys(): # 如果没有标记
+            return None
+        elif self.fileStatedict[filePath] == 1: # 如果有标记且保存过
             return True
-        else:
+        else: # 有标记但没保存
             return False  # 自动标记过但没保存
 
     def resizeEvent(self, event):
@@ -1622,7 +1616,7 @@ class MainWindow(QMainWindow, WindowMixin):
         else:
             settings[SETTING_LAST_OPEN_DIR] = ''
 
-        settings[SETTING_AUTO_SAVE] = self.autoSaving.isChecked()
+        # settings[SETTING_AUTO_SAVE] = self.autoSaving.isChecked()
         settings[SETTING_SINGLE_CLASS] = self.singleClassMode.isChecked()
         settings[SETTING_PAINT_LABEL] = self.displayLabelOption.isChecked()
         settings[SETTING_DRAW_SQUARE] = self.drawSquaresOption.isChecked()
@@ -1707,10 +1701,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.lastOpenDir = dirpath
         self.dirname = dirpath
-        if self.defaultSaveDir is None:
-            self.defaultSaveDir = os.path.dirname(dirpath)
-            self.loadFilestate(os.path.dirname(dirpath))  # ADD 还需要确保其他地方调用时不会冲突
-            self.loadPPlabel(os.path.dirname(dirpath))
+        if self.defaultSaveDir is None: # 第一次打开时为空
+            self.defaultSaveDir = dirpath
+            self.loadFilestate(self.defaultSaveDir)
+            self.loadPPlabel(self.defaultSaveDir)
         self.filePath = None
         self.fileListWidget.clear()
         self.mImgList = self.scanAllImages(dirpath)  # 将所有文件读入mImgList中
@@ -1752,16 +1746,16 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def openPrevImg(self, _value=False):
         # Proceding prev image without dialog if having any label
-        if self.autoSaving.isChecked():
-            if self.defaultSaveDir is not None:
-                if self.dirty is True:
-                    self.saveFile()
-            else:
-                self.changeSavedirDialog()
-                return
+        # if self.autoSaving.isChecked():
+        #     if self.defaultSaveDir is not None:
+        #         if self.dirty is True:
+        #             self.saveFile()
+        #     else:
+        #         self.changeSavedirDialog()
+        #         return
 
-        if not self.mayContinue():
-            return
+        # if not self.mayContinue():
+        #     return
 
         if len(self.mImgList) <= 0:
             return
@@ -1776,17 +1770,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadFile(filename)
 
     def openNextImg(self, _value=False):
-        # Proceding prev image without dialog if having any label
-        if self.autoSaving.isChecked():
-            if self.defaultSaveDir is not None:
-                if self.dirty is True:
-                    self.saveFile()
-            else:
-                self.changeSavedirDialog()
-                return
+        # # Proceding prev image without dialog if having any label 删除自动保存模式
+        # if self.autoSaving.isChecked():
+        #     if self.defaultSaveDir is not None:
+        #         if self.dirty is True:
+        #             self.saveFile()
+        #     else:
+        #         self.changeSavedirDialog()
+        #         return
 
-        if not self.mayContinue():
-            return
+        # if not self.mayContinue(): # 不需要判断是否继续
+        #     return
 
         if len(self.mImgList) <= 0:
             return
@@ -1823,7 +1817,9 @@ class MainWindow(QMainWindow, WindowMixin):
         if self.validFilestate(filename) is True:  # 这里标记改为读入文件
             item = QListWidgetItem(newIcon('done'), filename)
             self.setClean()  # 默认不需要保存
-        else:
+        elif self.validFilestate(filename) is None:
+            item = QListWidgetItem(newIcon('close'), filename)
+        else: # 没有被保存过
             item = QListWidgetItem(newIcon('close'), filename)
             self.setDirty()
         self.fileListWidget.addItem(filename)
@@ -1927,8 +1923,7 @@ class MainWindow(QMainWindow, WindowMixin):
             os.remove(deletePath)
             if self.filePath in self.fileStatedict.keys():
                 self.fileStatedict.pop(self.filePath)  # 全路径
-            path_list = self.filePath.split('\\')
-            imgidx = path_list[-2] + '/' + path_list[-1]
+            imgidx = self.getImglabelidx(self.filePath)
             if imgidx in self.PPlabel.keys():
                 self.PPlabel.pop(imgidx)  # 图片路径
             self.openNextImg()
@@ -2040,7 +2035,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         imglabelidx = self.getImglabelidx(self.filePath)
         # if self.PPreader is None: # 第一次运行时实例化
-        self.PPreader = YoloReader(txtPath, self.image)  # 从self.filePath中定位图片 #：TODO 可以改成不太频繁的写入读取
+        self.PPreader = YoloReader(txtPath, self.image)  # 从self.filePath中定位图片
         if self.PPreader.isExist(imglabelidx) is False:  # 如果不存在label直接返回
             return
         else:
