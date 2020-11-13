@@ -973,6 +973,7 @@ class MainWindow(QMainWindow, WindowMixin):
         if not item:
             return
         text = self.labelDialog.popUp(item.text())  # 设置文字
+        
         # 判断输入是否符合图片大小
         imageSize = str(self.image.size())
         width, height = self.image.width(), self.image.height()
@@ -991,6 +992,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 msg_box = QMessageBox(QMessageBox.Warning, '警告', '超出图片范围')
                 msg_box.exec_()
                 return
+
         if text is not None:
             item.setText(text)  # 这里会连接到labelItemChanged
             item.setBackground(generateColorByText(text))
@@ -1090,7 +1092,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('item in add label is ',[(p.x(), p.y()) for p in shape.points], shape.label)
 
         # ADD for box
-        item = HashableQListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))  # 这里可以转化一下
+        item = HashableQListWidgetItem(str([(int(p.x()), int(p.y())) for p in shape.points])) # 这里可以转化一下
         # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
         item.setCheckState(Qt.Checked)  # 状态
