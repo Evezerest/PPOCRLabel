@@ -377,6 +377,10 @@ class MainWindow(QMainWindow, WindowMixin):
         self.scrolldock.setObjectName('WorkSpace')
         self.scrolldock.setWidget(centercontainer)
         self.scrolldock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        orititle = self.scrolldock.titleBarWidget()
+        tmpwidget = QWidget()
+        self.scrolldock.setTitleBarWidget(tmpwidget)
+        del orititle
         self.setCentralWidget(self.scrolldock)
         #self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
