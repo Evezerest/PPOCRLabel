@@ -28,7 +28,6 @@ class Worker(QThread):
 
     def run(self):
         try:
-
             findex = 0
             for Imgpath in self.mImgList:
                 if self.handle == 0:
