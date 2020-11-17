@@ -101,7 +101,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.defaultSaveDir = defaultSaveDir
         # self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
         self.labelFileFormat = 'Paddle'  # 写死
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=False, cls=True, lang="ch")  # 读入模型
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")  # 读入模型
 
         # For loading all image under a directory
         self.mImgList = []
@@ -1243,7 +1243,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
                                     self.lineColor.getRgb(), self.fillColor.getRgb())
-            print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
+            # print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except LabelFileError as e:
             self.errorMessage(u'Error saving label data', u'<b>%s</b>' % e)
@@ -1930,18 +1930,19 @@ class MainWindow(QMainWindow, WindowMixin):
                 # 文件状态与label
                 #  将状态设置为 1
                 self.fileStatedict[self.filePath] = 1
-                print('infor in _saveFile are', currIndex, self.mImgList[currIndex])
+                # print('infor in _saveFile are', currIndex, self.mImgList[currIndex])
 
                 # 直接改变，找到当前item
                 # item_pre = self.fileListWidget.currentItem()
-                item_prou = self.fileListWidget.item(currIndex)  # 之前项
+                # item_prou = self.fileListWidget.item(currIndex)  # 之前项
                 # self.fileListWidget.removeItemWidget(self.fileListWidget.row(item_pre)) # 删不掉
-                self.fileListWidget.takeItem(self.fileListWidget.row(item_prou))  # 使用take 删除
-                print(item_prou)
-                print('self.filePath is ', self.filePath)
+                # self.fileListWidget.takeItem(self.fileListWidget.row(item_prou))  # 使用take 删除
+                # print(item_prou)
+                # print('self.filePath is ', self.filePath)
                 # self.fileListWidget.currentItemChanged(item, item_pre) # 用了就崩溃
 
                 self.fileListWidget.insertItem(int(currIndex), item)
+                self.openNextImg()
 
         elif mode == 'Auto':  # 全部自动识别下的保存,不更新图片状态
             if annotationFilePath and self.saveLabels(annotationFilePath, mode=mode):
@@ -2083,7 +2084,7 @@ class MainWindow(QMainWindow, WindowMixin):
             shapes = self.PPreader.getShapes(imglabelidx)  # 选择文件
             print(shapes)
             self.loadLabels(shapes)
-            self.canvas.verified = self.PPreader.verified  # 这句的含义？
+            self.canvas.verified = self.PPreader.verified
 
     def copyPreviousBoundingBoxes(self):
         currIndex = self.mImgList.index(self.filePath)
@@ -2136,16 +2137,10 @@ class MainWindow(QMainWindow, WindowMixin):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
         print('Using model from ', self.model)
-        if self.model == 'paddle':
-            # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
-            # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, rec=False,
-                            lang="ch")  # need to run only once to download and load model into memory
 
         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
-        self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
+        self.autoDialog = AutoDialog(parent=self, ocr=self.ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
         self.autoDialog.popUp()
-        
 
         self.loadFile(self.filePath) # ADD
         self.haveAutoReced = True
@@ -2156,7 +2151,6 @@ class MainWindow(QMainWindow, WindowMixin):
     def reRecognition(self):
         # 读入当前图片
         img = cv2.imread(self.filePath)
-
         # TODO: 这里需要只预测的功能，需要将移动之后的框参数传入
         # 读取 self.canvas.shapes 中的信息 然后再接一个识别模型
         # print([[(p.x(), p.y()) for p in shape.points] for shape in self.canvas.shapes]) # 得到边界框位置
@@ -2168,6 +2162,10 @@ class MainWindow(QMainWindow, WindowMixin):
                 box = [[int(p.x()), int(p.y())] for p in shape.points]
                 assert len(box) == 4
                 img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+                if img_crop is None:
+                    msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
+                    QMessageBox.information(self, "Information", msg)
+                    return
                 result = self.ocr.ocr(img_crop, cls=True, det=False)
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
@@ -2193,10 +2191,9 @@ class MainWindow(QMainWindow, WindowMixin):
             elif len(self.result_dic) == len(self.canvas.shapes) and rec_flag == 0:
                 QMessageBox.information(self, "Information", "Not any change!")
             else:
-                print('Can not recgonition in ', self.filePath)
-
+                print('Can not recgonise in ', self.filePath)
         else:
-            print('Draw a box!')
+            QMessageBox.information(self, "Information", "Draw a box!")
 
         # TODO: 重新载入文件 auto recognition也一样
         self.loadFile(self.filePath)
@@ -2256,7 +2253,9 @@ class MainWindow(QMainWindow, WindowMixin):
                     f.write(key + '\t')
                     f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
         f.close()
-        
+
+        print('Label file is saved in ', self.PPlabelpath)
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
