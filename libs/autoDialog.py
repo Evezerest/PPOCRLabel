@@ -6,17 +6,17 @@ except ImportError:
     from PyQt4.QtGui import *
     from PyQt4.QtCore import *
 
+from libs.utils import newIcon, labelValidator
 import json
-
-from libs.utils import newIcon
+import ctypes
 
 BB = QDialogButtonBox
 
-
 class Worker(QThread):
+
     progressBarValue = pyqtSignal(int)  # 更新进度条
     listValue = pyqtSignal(str)
-    endsignal = pyqtSignal(int, str)
+    endsignal = pyqtSignal(int,str)
     handle = 0
 
     def __init__(self, ocr, mImgList, mainThread, model):
@@ -27,39 +27,34 @@ class Worker(QThread):
         self.model = model
 
     def run(self):
-        try:
+        findex = 0
+        for Imgpath in self.mImgList:
+            if self.handle == 0:
+                self.listValue.emit(Imgpath)
+                if self.model == 'paddle':
+                    self.result_dic = self.ocr.ocr(Imgpath, cls=True)
+                    for res in self.result_dic:
+                        chars = res[1][0]
+                        cond = res[1][1]
+                        posi = res[0]
+                        self.listValue.emit("文字:"+chars+" 置信度:"+str(cond)+" 坐标:"+json.dumps(posi))
 
-            findex = 0
-            for Imgpath in self.mImgList:
-                if self.handle == 0:
-                    self.listValue.emit(Imgpath)
-                    if self.model == 'paddle':
-                        self.result_dic = self.ocr.ocr(Imgpath, cls=True, det=True)
-
-                    # 结果保存
-                    if self.result_dic is None or len(self.result_dic) == 0:
-                        print('Can not recognise file  is :  ', Imgpath)
-                        pass
-                    else:
-                        for res in self.result_dic:
-                            chars = res[1][0]
-                            cond = res[1][1]
-                            posi = res[0]
-                            self.listValue.emit("文字:" + chars + " 置信度:" + str(cond) + " 坐标:" + json.dumps(posi))
-                        # self.filePath 存在
-                        self.mainThread.result_dic = self.result_dic
-                        self.mainThread.filePath = Imgpath  # 文件路径
-                        # 保存
-                        self.mainThread.saveFile(mode='Auto')
-                    findex += 1
-                    self.progressBarValue.emit(findex)
+                # 结果保存
+                if self.result_dic is None or len(self.result_dic) == 0:
+                    print('Can not recognise ', Imgpath)
                 else:
-                    break
-            self.endsignal.emit(0, "readAll")
-            self.exec()
-        except Exception as e:
-            print(e)
-            raise
+                    # self.filePath 存在
+                    self.mainThread.result_dic = self.result_dic
+                    self.mainThread.filePath = Imgpath  # 文件路径
+                    # 保存
+                    self.mainThread.saveFile(mode='Auto')
+                findex += 1
+                self.progressBarValue.emit(findex)
+            else:
+                break
+        self.endsignal.emit(0,"readAll")
+        self.exec()
+        
 
 
 class AutoDialog(QDialog):
@@ -71,7 +66,7 @@ class AutoDialog(QDialog):
         self.ocr = ocr
         self.mImgList = mImgList
         self.pb = QProgressBar()
-        self.pb.setRange(0, lenbar)
+        self.pb.setRange(0,lenbar)
         self.pb.setValue(0)
 
         layout = QVBoxLayout()
@@ -87,12 +82,12 @@ class AutoDialog(QDialog):
         bb.rejected.connect(self.reject)
         layout.addWidget(bb)
         bb.button(BB.Ok).setEnabled(False)
-
+        
         self.setLayout(layout)
         self.setWindowTitle("自动标注中")
         self.setWindowModality(Qt.ApplicationModal)
 
-        # self.setWindowFlags(Qt.WindowCloseButtonHint)
+        #self.setWindowFlags(Qt.WindowCloseButtonHint)
 
         self.thread_1 = Worker(self.ocr, self.mImgList, self.parent, 'paddle')
         self.thread_1.progressBarValue.connect(self.handleProgressBarSingal)
@@ -104,7 +99,7 @@ class AutoDialog(QDialog):
 
     def handleListWidgetSingal(self, i):
         self.listWidget.addItem(i)
-        titem = self.listWidget.item(self.listWidget.count() - 1)
+        titem = self.listWidget.item(self.listWidget.count()-1)
         self.listWidget.scrollToItem(titem)
 
     def handleEndsignalSignal(self, i, str):
@@ -121,7 +116,7 @@ class AutoDialog(QDialog):
         #     self.thread_1.terminate()
         # self.thread_1.quit()
         # super(AutoDialog,self).reject()
-        while not self.thread_1.isFinished():
+        while(not self.thread_1.isFinished()):
             pass
         self.accept()
 
@@ -137,7 +132,7 @@ class AutoDialog(QDialog):
             self.edit.setText(self.edit.text())
             print(self.edit.text())
 
-    def popUp(self):
+    def popUp(self):  
         self.thread_1.start()
         return 1 if self.exec_() else None
 
