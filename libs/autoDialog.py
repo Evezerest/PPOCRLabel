@@ -27,21 +27,31 @@ class Worker(QThread):
         self.model = model
 
     def run(self):
-        findex = 0
-        for Imgpath in self.mImgList:
-            if self.handle == 0:
-                self.listValue.emit(Imgpath)
-                if self.model == 'paddle':
-                    self.result_dic = self.ocr.ocr(Imgpath, cls=True)
-                    for res in self.result_dic:
-                        chars = res[1][0]
-                        cond = res[1][1]
-                        posi = res[0]
-                        self.listValue.emit("文字:"+chars+" 置信度:"+str(cond)+" 坐标:"+json.dumps(posi))
+        try:
+            findex = 0
+            for Imgpath in self.mImgList:
+                if self.handle == 0:
+                    self.listValue.emit(Imgpath)
+                    if self.model == 'paddle':
+                        self.result_dic = self.ocr.ocr(Imgpath, cls=True, det=True)
 
-                # 结果保存
-                if self.result_dic is None or len(self.result_dic) == 0:
-                    print('Can not recognise ', Imgpath)
+                    # 结果保存
+                    if self.result_dic is None or len(self.result_dic) == 0:
+                        print('Can not recognise file  is :  ', Imgpath)
+                        pass
+                    else:
+                        for res in self.result_dic:
+                            chars = res[1][0]
+                            cond = res[1][1]
+                            posi = res[0]
+                            self.listValue.emit("文字:" + chars + " 置信度:" + str(cond) + " 坐标:" + json.dumps(posi))
+                        # self.filePath 存在
+                        self.mainThread.result_dic = self.result_dic
+                        self.mainThread.filePath = Imgpath  # 文件路径
+                        # 保存
+                        self.mainThread.saveFile(mode='Auto')
+                    findex += 1
+                    self.progressBarValue.emit(findex)
                 else:
                     # self.filePath 存在
                     self.mainThread.result_dic = self.result_dic
