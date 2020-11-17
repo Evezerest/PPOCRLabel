@@ -101,7 +101,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.defaultSaveDir = defaultSaveDir
         # self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
         self.labelFileFormat = 'Paddle'  # 写死
-        self.ocr = PaddleOCR(use_pdserving=False, use_gpu=False, use_angle_cls=True, det=True, cls=True,
+        self.ocr = PaddleOCR(use_pdserving=False, use_gpu=True, use_angle_cls=True, det=True, cls=True,
                              lang="ch"))  # 读入模型
 
         # For loading all image under a directory
@@ -2081,7 +2081,7 @@ class MainWindow(QMainWindow, WindowMixin):
         assert self.mImgList is not None
         print('Using model from ', self.model)
         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
-        self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
+        self.autoDialog = AutoDialog(parent=self, ocr=self.ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
         self.autoDialog.popUp()
         
 
