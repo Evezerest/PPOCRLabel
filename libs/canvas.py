@@ -387,7 +387,6 @@ class Canvas(QWidget):
                 print('current points in handleDrawing is ', self.line[self.pointnum])
                 self.update()
                 if self.pointnum == 3:  # 点选完
-                    print('xuanwanle')
                     self.finalise()
 
             else: # 按住送掉后跳到这里
@@ -592,7 +591,7 @@ class Canvas(QWidget):
 
         # Paint rect
         if self.current is not None and len(self.line) == 2 and not self.fourpoint:
-            print('Drawing rect') # 在拉的过程中一直是2， 所以一直显示框
+            # print('Drawing rect') # 在拉的过程中一直是2， 所以一直显示框
             leftTop = self.line[0]
             rightBottom = self.line[1]
             rectWidth = rightBottom.x() - leftTop.x()
@@ -669,7 +668,7 @@ class Canvas(QWidget):
     def finalise(self):
         assert self.current
         if self.current.points[0] == self.current.points[-1]:
-            print('finalse')
+            # print('finalse')
             self.current = None
             self.drawingPolygon.emit(False)
             self.update()
