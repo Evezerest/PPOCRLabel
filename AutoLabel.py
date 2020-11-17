@@ -143,7 +143,7 @@ class MainWindow(QMainWindow, WindowMixin):
         ################# 文件列表  ###############
         # TODO: 增加icon
         self.fileListWidget = QListWidget()
-        self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)  # 文件被双击后
+        self.fileListWidget.itemClicked.connect(self.fileitemDoubleClicked)  # 文件被双击后
         self.fileListWidget.setIconSize(QSize(25, 25))  # 设置控件大小
         filelistLayout = QVBoxLayout()
         filelistLayout.setContentsMargins(0, 0, 0, 0)
@@ -318,7 +318,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.setIconSize(QSize(50, 50))
         self.iconlist.setMovement(False)
         self.iconlist.setResizeMode(QListView.Adjust)
-        self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
+        self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
         self.nextButton = QToolButton()
         self.nextButton.setFixedHeight(100)
         self.nextButton.setText(getStr("nextImg"))
