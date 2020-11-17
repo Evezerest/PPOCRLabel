@@ -101,7 +101,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.defaultSaveDir = defaultSaveDir
         # self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
         self.labelFileFormat = 'Paddle'  # 写死
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=False, cls=True, lang="ch")  # 读入模型
+        self.ocr = PaddleOCR(use_pdserving=False, use_gpu=False, use_angle_cls=True, det=True, cls=True,
+                             lang="ch"))  # 读入模型
 
         # For loading all image under a directory
         self.mImgList = []
@@ -2079,12 +2080,6 @@ class MainWindow(QMainWindow, WindowMixin):
         # 直接从读入的所有文件中进行识别
         assert self.mImgList is not None
         print('Using model from ', self.model)
-        if self.model == 'paddle':
-            # Paddleocr目前支持中英文、英文、法语、德语、韩语、日语，可以通过修改lang参数进行切换
-            # 参数依次为`ch`, `en`, `french`, `german`, `korean`, `japan`。
-            ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, rec=False,
-                            lang="ch")  # need to run only once to download and load model into memory
-            
         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
         self.autoDialog = AutoDialog(parent=self, ocr=ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
         self.autoDialog.popUp()
