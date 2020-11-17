@@ -1752,7 +1752,7 @@ class MainWindow(QMainWindow, WindowMixin):
             if self.validFilestate(imgPath) is True:
                 item = QListWidgetItem(doneicon, filename)  # item即为file name的控件
             else:
-                item = QListWidgetItem(closeicon, imgPath)
+                item = QListWidgetItem(closeicon, filename)
             self.fileListWidget.addItem(item)
 
         print('dirPath in importDirImages is', dirpath)
