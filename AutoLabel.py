@@ -21,7 +21,7 @@ __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(__dir__)
 sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
 
-from paddleocr import PaddleOCR
+from paddleocr_new import PaddleOCR
 
 try:
     from PyQt5 import QtCore, QtGui, QtWidgets
@@ -194,6 +194,13 @@ class MainWindow(QMainWindow, WindowMixin):
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+
+
+        # 模型选择下拉框
+        self.comboBox = QtWidgets.QComboBox()
+        self.comboBox.setObjectName("comboBox")        
+        self.comboBox.addItems(['server','mobile','slim'])
+        self.comboBox.currentIndexChanged.connect(self.seclectmodel)
         # self.reRecogButton.setIcon(newIcon())
         # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
@@ -207,6 +214,7 @@ class MainWindow(QMainWindow, WindowMixin):
         lefttoptoolbox = QHBoxLayout()
         lefttoptoolbox.addWidget(self.newButton)
         lefttoptoolbox.addWidget(self.reRecogButton)
+        lefttoptoolbox.addWidget(self.comboBox)
         lefttoptoolboxcontainer = QWidget()
         lefttoptoolboxcontainer.setLayout(lefttoptoolbox)
         listLayout.addWidget(lefttoptoolboxcontainer)
@@ -2222,6 +2230,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                     QMessageBox.information(self, "Information", msg)
                     return
+                print(self.comboBox.currentText())
                 result = self.ocr.ocr(img_crop, cls=True, det=False)
                 # 增加一个判断条件，处理空框标注残留问题
                 if result[0][0] is not '':
@@ -2252,6 +2261,10 @@ class MainWindow(QMainWindow, WindowMixin):
             QMessageBox.information(self, "Information", "Draw a box!")
 
 
+    def seclectmodel(self):
+        print('model change')
+        print(self.comboBox.currentText())
+    
     def autolcm(self):
         print('autolabelchoosemodel')
 
