@@ -143,10 +143,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.prevLabelText = '待识别'
         self.model = 'paddle'  # ADD 
         self.PPreader = None  # txt标注类
-        self.autoSaveNum = 2
+        self.autoSaveNum = 10
 
         ################# 文件列表  ###############
-        # TODO: 增加icon
         self.fileListWidget = QListWidget()
         # self.fileListWidget.itemDoubleClicked.connect(self.fileitemDoubleClicked)  # 文件被双击后
         self.fileListWidget.itemClicked.connect(self.fileitemDoubleClicked)  # 文件被双击后
@@ -157,7 +156,11 @@ class MainWindow(QMainWindow, WindowMixin):
         
         self.AutoRecognition = QToolButton()
         self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        # self.AutoRecognition.setIcon(newIcon()) # TODO: icon
+        self.AutoRecognition.setIcon(newIcon('Auto')) # TODO: icon
+        # self.AutoRecognition.setIconSize(QSize(100,20))
+        self.AutoRecognition.setFixedSize(QSize(80,30))
+        # self.AutoRecognition.setStyleSheet('#border{border-style: dotted;};')  # 设置边框消失font-size:x-large;
+        self.AutoRecognition.setStyleSheet('text-align:center;')#border:none;font-size : 12pt;
         autoRecLayout = QHBoxLayout()
         autoRecLayout.setContentsMargins(0, 0, 0, 0)
         autoRecLayout.addWidget(self.AutoRecognition)
@@ -193,15 +196,20 @@ class MainWindow(QMainWindow, WindowMixin):
         self.diffcButton.stateChanged.connect(self.btnstate)
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
+        self.reRecogButton.setIcon(newIcon('reRec', 30))  # TODO: icon
+        self.reRecogButton.setFixedSize(QSize(80,30))
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         # self.reRecogButton.setIcon(newIcon())
         # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.newButton.setFixedSize(QSize(80, 30))
         self.SaveButton = QToolButton()
         self.SaveButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.SaveButton.setFixedSize(QSize(60, 30))
         self.DelButton = QToolButton()
         self.DelButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.DelButton.setFixedSize(QSize(80, 30))
 
         # 右侧顶层box
         lefttoptoolbox = QHBoxLayout()
@@ -252,7 +260,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.BoxListDock.setFeatures(QDockWidget.NoDockWidgetFeatures)
         listLayout.addWidget(self.BoxListDock)
 
-        ############ 左侧底层box ############
+        ############ 右侧底层box ############
         leftbtmtoolbox = QHBoxLayout()
         leftbtmtoolbox.addWidget(self.SaveButton)
         leftbtmtoolbox.addWidget(self.DelButton)
@@ -312,12 +320,13 @@ class MainWindow(QMainWindow, WindowMixin):
         hlayout.setSpacing(0)
         hlayout.setContentsMargins(*m)
         self.preButton = QToolButton()
-        self.preButton.setFixedHeight(100)
-        self.preButton.setText(getStr("prevImg"))
-        self.preButton.setIcon(newIcon("prev", 80))
-        self.preButton.setIconSize(QSize(80, 80))
+        # self.preButton.setFixedHeight(100)
+        # self.preButton.setText(getStr("prevImg"))
+        self.preButton.setIcon(newIcon("prev",40))
+        self.preButton.setIconSize(QSize(40, 100))
         self.preButton.clicked.connect(self.openPrevImg)
-        self.preButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        # self.preButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        self.preButton.setStyleSheet('border: none;') # 设置边框消失
         self.iconlist = QListWidget()
         self.iconlist.setViewMode(QListView.IconMode)
         self.iconlist.setFlow(QListView.TopToBottom)
@@ -327,14 +336,16 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.setResizeMode(QListView.Adjust)
         # self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
-        self.iconlist.setStyleSheet("background-color:transparent")
+        self.iconlist.setStyleSheet("background-color:transparent; border: none;")
+        # self.iconlist.setStyleSheet('border: none;')
         self.nextButton = QToolButton()
-        self.nextButton.setFixedHeight(100)
-        self.nextButton.setText(getStr("nextImg"))
-        self.nextButton.setIcon(newIcon("next", 80))
-        self.nextButton.setIconSize(QSize(80, 80))
+        # self.nextButton.setFixedHeight(100)
+        # self.nextButton.setText(getStr("nextImg"))
+        self.nextButton.setIcon(newIcon("next", 40))
+        self.nextButton.setIconSize(QSize(40, 100))
+        self.nextButton.setStyleSheet('border: none;')
         self.nextButton.clicked.connect(self.openNextImg)
-        self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
+        # self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         
         hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
@@ -345,7 +356,7 @@ class MainWindow(QMainWindow, WindowMixin):
         iconListContainer = QWidget()
         iconListContainer.setLayout(hlayout)
         iconListContainer.setFixedHeight(100)
-        iconListContainer.setFixedWidth(630)
+        iconListContainer.setFixedWidth(530)
         # op = QGraphicsOpacityEffect()
         # op.setOpacity(0.5)
         # iconListContainer.setGraphicsEffect(op)
@@ -380,6 +391,7 @@ class MainWindow(QMainWindow, WindowMixin):
         centercontainer = QWidget()
         centercontainer.setLayout(centerLayout)
 
+        # 中心控件
         self.scrolldock = QDockWidget('WorkSpace',self)
         self.scrolldock.setObjectName('WorkSpace')
         self.scrolldock.setWidget(centercontainer)
@@ -388,7 +400,7 @@ class MainWindow(QMainWindow, WindowMixin):
         tmpwidget = QWidget()
         self.scrolldock.setTitleBarWidget(tmpwidget)
         del orititle
-        self.setCentralWidget(self.scrolldock)
+        self.setCentralWidget(self.scrolldock)#self.scrolldock
         #self.addDockWidget(Qt.LeftDockWidgetArea, self.filedock) # 这里改了左侧但没用
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
@@ -521,10 +533,10 @@ class MainWindow(QMainWindow, WindowMixin):
         # print('getStr is ', getStr('editLabel'))
         # Add
         AutoRec = action(getStr('autoRecognition'), self.autoRecognition,
-                      'Ctrl+Shif+A', 'AutoRecognition', 'Auto Recognition', enabled=False)
+                      'Ctrl+Shif+A', 'Auto', getStr('autoRecognition'), enabled=False)
 
         reRec = action(getStr('reRecognition'), self.reRecognition, 
-                      'Ctrl+Shif+R', 'reRecognition', 'reRecognition', enabled=False)
+                      'Ctrl+Shif+R', 'reRec', getStr('reRecognition'), enabled=False)
 
         createpoly = action(getStr('creatPolygon'), self.createPolygon,
                             'p', 'new', 'Creat Polygon', enabled=True)
@@ -1046,28 +1058,20 @@ class MainWindow(QMainWindow, WindowMixin):
 
     # Tzutalin 20160906 : Add file list and dock to move faster
     def fileitemDoubleClicked(self, item=None):
-        chosenIdx = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
-        if self.currIndex == chosenIdx:
-            pass
-        else:
-            self.currIndex = chosenIdx
-            filename = self.mImgList[self.currIndex]
-            if filename:
-                self.mImgList5 = self.indexTo5Files(self.currIndex)
-                self.additems5(None)
-                self.loadFile(filename)
+        self.currIndex = self.mImgList.index(ustr(os.path.join(os.path.abspath(self.dirname), item.text())))
+        filename = self.mImgList[self.currIndex]
+        if filename:
+            self.mImgList5 = self.indexTo5Files(self.currIndex)
+            self.additems5(None)
+            self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
-        chosenIdx = self.mImgList.index(ustr(os.path.join(item.toolTip())))
-        if self.currIndex == chosenIdx:
-            pass
-        else:
-            self.currIndex = chosenIdx
-            filename = self.mImgList[self.currIndex]
-            if filename:
-                self.mImgList5 = self.indexTo5Files(self.currIndex)
-                self.additems5(None)
-                self.loadFile(filename)
+        self.currIndex = self.mImgList.index(ustr(os.path.join(item.toolTip())))
+        filename = self.mImgList[self.currIndex]
+        if filename:
+            self.mImgList5 = self.indexTo5Files(self.currIndex)
+            self.additems5(None)
+            self.loadFile(filename)
 
     def CanvasSizeChange(self):
         if len(self.mImgList) > 0:
@@ -2195,7 +2199,7 @@ class MainWindow(QMainWindow, WindowMixin):
         uncheckedList = [i for i in self.mImgList if i not in self.fileStatedict.keys()]
         self.autoDialog = AutoDialog(parent=self, ocr=self.ocr, mImgList=uncheckedList, lenbar=len(uncheckedList))
         self.autoDialog.popUp()
-
+        self.currIndex=len(self.mImgList)
         self.loadFile(self.filePath) # ADD
         self.haveAutoReced = True
         self.AutoRecognition.setEnabled(False)
