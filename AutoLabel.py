@@ -98,11 +98,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.stringBundle = StringBundle.getBundle(localeStr="zh-CN") # 'en'
         getStr = lambda strId: self.stringBundle.getString(strId)
 
-        # Save as Pascal voc xml
-        self.defaultSaveDir = defaultSaveDir # 程序写入的
-        # self.labelFileFormat = settings.get(SETTING_LABEL_FILE_FORMAT, LabelFileFormat.PASCAL_VOC)
-        self.labelFileFormat = 'Paddle'  # 写死
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")  # 读入模型
+        self.defaultSaveDir = defaultSaveDir
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")
         # 先启动一次模型
         if os.path.exists('./paddle.png'):
             result = self.ocr.ocr('./paddle.png', cls=True, det=True)
@@ -183,7 +180,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.diffcButton.stateChanged.connect(self.btnstate)
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
-        self.reRecogButton.setIcon(newIcon('reRec', 30))  # TODO: icon
+        self.reRecogButton.setIcon(newIcon('reRec', 30))
         self.reRecogButton.setFixedSize(QSize(80,30))
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
@@ -337,7 +334,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.canvas.scrollRequest.connect(self.scrollRequest)
 
         self.canvas.newShape.connect(self.newShape)
-        self.canvas.shapeMoved.connect(self.updateBoxlist)  # self.setDirty TODO
+        self.canvas.shapeMoved.connect(self.updateBoxlist)  # self.setDirty
         self.canvas.selectionChanged.connect(self.shapeSelectionChanged)
         self.canvas.drawingPolygon.connect(self.toggleDrawingSensitive)
 
@@ -380,11 +377,6 @@ class MainWindow(QMainWindow, WindowMixin):
         opendir = action(getStr('openDir'), self.openDirDialog,
                          'Ctrl+u', 'open', getStr('openDir'))
 
-
-        changeSavedir = action(getStr('changeSaveDir'), self.changeSavedirDialog,
-                               'Ctrl+r', 'open', getStr('changeSavedAnnotationDir'))
-
-
         openNextImg = action(getStr('nextImg'), self.openNextImg,
                              'd', 'next', getStr('nextImgDetail'))
 
@@ -399,7 +391,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         alcm = action(getStr('choosemodel'), self.autolcm,
                                         'Ctrl+M', 'next', getStr('tipchoosemodel'))
-        isUsingPascalVoc = self.labelFileFormat == LabelFileFormat.PASCAL_VOC
 
         deleteImg = action(getStr('deleteImg'), self.deleteImg, 'Ctrl+D', 'close', getStr('deleteImgDetail'),
                            enabled=True)
@@ -605,11 +596,11 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.tools = self.toolbar('Tools')
 
         self.actions.beginner = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, verify, save, None, create, copy, delete, None,
+            open, opendir, openNextImg, openPrevImg, verify, save, None, create, copy, delete, None,
             zoomIn, zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (
-            open, opendir, changeSavedir, openNextImg, openPrevImg, save, None,
+            open, opendir, openNextImg, openPrevImg, save, None,
             createMode, editMode, None,
             hideAll, showAll)
 
@@ -637,7 +628,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.recentFiles = recentFileQStringList = settings.get(SETTING_RECENT_FILES)
 
-        size = settings.get(SETTING_WIN_SIZE, QSize(1000, 700))
+        size = settings.get(SETTING_WIN_SIZE, QSize(1000, 800))
         position = QPoint(0, 0)
         saved_position = settings.get(SETTING_WIN_POSE, position)
         # Fix the multiple monitors issue
@@ -690,28 +681,6 @@ class MainWindow(QMainWindow, WindowMixin):
             # Draw rectangle if Ctrl is pressed
             self.canvas.setDrawingShapeToSquare(True)
 
-    ## Support Functions ##
-    def set_format(self, save_format):
-        if save_format == FORMAT_PASCALVOC:
-            self.actions.save_format.setText(FORMAT_PASCALVOC)
-            self.actions.save_format.setIcon(newIcon("format_voc"))
-            self.labelFileFormat = LabelFileFormat.PASCAL_VOC
-            LabelFile.suffix = XML_EXT
-
-        elif save_format == FORMAT_YOLO:
-            self.actions.save_format.setText(FORMAT_YOLO)
-            self.actions.save_format.setIcon(newIcon("format_yolo"))
-            self.labelFileFormat = LabelFileFormat.YOLO
-            LabelFile.suffix = TXT_EXT
-
-    def change_format(self):
-        if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
-            self.set_format(FORMAT_YOLO)
-        elif self.labelFileFormat == LabelFileFormat.YOLO:
-            self.set_format(FORMAT_PASCALVOC)
-        else:
-            raise ValueError('Unknown label file format.')
-        self.setDirty()
 
     def noShapes(self):
         return not self.itemsToShapes
@@ -1114,28 +1083,17 @@ class MainWindow(QMainWindow, WindowMixin):
                 shapes.append(trans_dic)
 
         try:
-            if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
-                if annotationFilePath[-4:].lower() != ".xml":
-                    annotationFilePath += XML_EXT
-                self.labelFile.savePascalVocFormat(annotationFilePath, shapes, self.filePath, self.imageData,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
-            elif self.labelFileFormat == LabelFileFormat.YOLO:
-                if annotationFilePath[-4:].lower() != ".txt":
-                    annotationFilePath += TXT_EXT
-                self.labelFile.saveYoloFormat(annotationFilePath, shapes, self.filePath, self.imageData, self.labelHist,
-                                                   self.lineColor.getRgb(), self.fillColor.getRgb())
-            elif self.labelFileFormat == 'Paddle':
-                trans_dic = []
-                for box in shapes:
-                    trans_dic.append({"transcription": box['label'], "points": box['points'], 'difficult': False})
-                self.PPlabel[annotationFilePath] = trans_dic
+            trans_dic = []
+            for box in shapes:
+                trans_dic.append({"transcription": box['label'], "points": box['points'], 'difficult': False})
+            self.PPlabel[annotationFilePath] = trans_dic
 
-                if mode == 'Auto':
-                    self.Cachelabel[annotationFilePath] = trans_dic
+            if mode == 'Auto':
+                self.Cachelabel[annotationFilePath] = trans_dic
 
-            else:
-                self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
-                                    self.lineColor.getRgb(), self.fillColor.getRgb())
+            # else:
+            #     self.labelFile.save(annotationFilePath, shapes, self.filePath, self.imageData,
+            #                         self.lineColor.getRgb(), self.fillColor.getRgb())
             # print('Image:{0} -> Annotation:{1}'.format(self.filePath, annotationFilePath))
             return True
         except LabelFileError as e:
@@ -1390,27 +1348,6 @@ class MainWindow(QMainWindow, WindowMixin):
             return True
         return False
 
-    def showBoundingBoxFromAnnotationFile(self, filePath):
-        if self.defaultSaveDir is not None:  #
-            basename = os.path.basename(
-                os.path.splitext(filePath)[0])
-            xmlPath = os.path.join(self.defaultSaveDir, basename + XML_EXT)
-            txtPath = self.defaultSaveDir + '/label.txt'
-
-            """Annotation file priority:
-            PascalXML > YOLO
-            """
-            if os.path.isfile(xmlPath):
-                self.loadPascalXMLByFilename(xmlPath)
-            elif os.path.isfile(txtPath):
-                self.loadYOLOTXTByFilename(txtPath)
-        else:
-            xmlPath = os.path.splitext(filePath)[0] + XML_EXT
-            txtPath = os.path.splitext(filePath)[0] + '/label.txt'
-            if os.path.isfile(xmlPath):
-                self.loadPascalXMLByFilename(xmlPath)
-            elif os.path.isfile(txtPath):
-                self.loadYOLOTXTByFilename(txtPath)
     
     def showBoundingBoxFromPPlabel(self, filePath):
         imgidx = self.getImglabelidx(filePath)
@@ -1517,7 +1454,6 @@ class MainWindow(QMainWindow, WindowMixin):
             settings[SETTING_SINGLE_CLASS] = self.singleClassMode.isChecked()
             settings[SETTING_PAINT_LABEL] = self.displayLabelOption.isChecked()
             settings[SETTING_DRAW_SQUARE] = self.drawSquaresOption.isChecked()
-            settings[SETTING_LABEL_FILE_FORMAT] = self.labelFileFormat
             settings.save()
             try:
                 self.saveFilestate()
@@ -1541,39 +1477,7 @@ class MainWindow(QMainWindow, WindowMixin):
         natural_sort(images, key=lambda x: x.lower())
         return images
 
-    def changeSavedirDialog(self, _value=False):
-        if self.defaultSaveDir is not None:
-            path = ustr(self.defaultSaveDir)
-        else:
-            path = '.'
 
-        dirpath = ustr(QFileDialog.getExistingDirectory(self,
-                                                       '%s - Save annotations to the directory' % __appname__, path,
-                                                        QFileDialog.ShowDirsOnly
-                                                        | QFileDialog.DontResolveSymlinks))
-
-        if dirpath is not None and len(dirpath) > 1:
-            self.defaultSaveDir = dirpath
-
-        self.statusBar().showMessage('%s . Annotation will be saved to %s' %
-                                     ('Change saved folder', self.defaultSaveDir))
-        self.statusBar().show()
-
-    def openAnnotationDialog(self, _value=False):
-        if self.filePath is None:
-            self.statusBar().showMessage('Please select image first')
-            self.statusBar().show()
-            return
-
-        path = os.path.dirname(ustr(self.filePath)) \
-            if self.filePath else '.'
-        if self.labelFileFormat == LabelFileFormat.PASCAL_VOC:
-            filters = "Open Annotation XML file (%s)" % ' '.join(['*.xml'])
-            filename = ustr(QFileDialog.getOpenFileName(self, '%s - Choose a xml file' % __appname__, path, filters))
-            if filename:
-                if isinstance(filename, (tuple, list)):
-                    filename = filename[0]
-            self.loadPascalXMLByFilename(filename)
 
     def openDirDialog(self, _value=False, dirpath=None, silent=False):
         if not self.mayContinue():
@@ -1906,43 +1810,6 @@ class MainWindow(QMainWindow, WindowMixin):
                     else:
                         self.labelHist.append(line)
 
-    def loadPascalXMLByFilename(self, xmlPath):
-        if self.filePath is None:
-            return
-        if os.path.isfile(xmlPath) is False:
-            return
-
-        self.set_format(FORMAT_PASCALVOC)
-
-        tVocParseReader = PascalVocReader(xmlPath)
-        shapes = tVocParseReader.getShapes()
-        self.loadLabels(shapes)
-        self.canvas.verified = tVocParseReader.verified
-
-    def loadYOLOTXTByFilename(self, txtPath):
-        if self.filePath is None:
-            return
-        if os.path.isfile(txtPath) is False:
-            return
-
-        self.set_format(FORMAT_YOLO)
-        
-        imglabelidx = self.getImglabelidx(self.filePath)
-        self.PPreader = YoloReader(txtPath, self.image)
-        if self.PPreader.isExist(imglabelidx) is False:
-            return
-        else:
-            shapes = self.PPreader.getShapes(imglabelidx)
-            print(shapes)
-            self.loadLabels(shapes)
-            self.canvas.verified = self.PPreader.verified
-
-    def copyPreviousBoundingBoxes(self):
-        currIndex = self.mImgList.index(self.filePath)
-        if currIndex - 1 >= 0:
-            prevFilePath = self.mImgList[currIndex - 1]
-            self.showBoundingBoxFromAnnotationFile(prevFilePath)
-            self.saveFile()
 
     def togglePaintLabelsOption(self):
         for shape in self.canvas.shapes:
