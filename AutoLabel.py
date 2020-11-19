@@ -346,20 +346,20 @@ class MainWindow(QMainWindow, WindowMixin):
         centercontainer = QWidget()
         centercontainer.setLayout(centerLayout)
 
-        self.scrolldock = QDockWidget('WorkSpace',self)
-        self.scrolldock.setObjectName('WorkSpace')
-        self.scrolldock.setWidget(centercontainer)
-        self.scrolldock.setFeatures(QDockWidget.NoDockWidgetFeatures)
-        orititle = self.scrolldock.titleBarWidget()
-        tmpwidget = QWidget()
-        self.scrolldock.setTitleBarWidget(tmpwidget)
-        del orititle
-        self.setCentralWidget(self.scrolldock)
+        # self.scrolldock = QDockWidget('WorkSpace',self)
+        # self.scrolldock.setObjectName('WorkSpace')
+        # self.scrolldock.setWidget(centercontainer)
+        # self.scrolldock.setFeatures(QDockWidget.NoDockWidgetFeatures)
+        # orititle = self.scrolldock.titleBarWidget()
+        # tmpwidget = QWidget()
+        # self.scrolldock.setTitleBarWidget(tmpwidget)
+        # del orititle
+        self.setCentralWidget(centercontainer) #self.scrolldock
         self.addDockWidget(Qt.RightDockWidgetArea, self.dock)
 
 
         # self.filedock.setFeatures(QDockWidget.DockWidgetFloatable)
-        self.filedock.setFeatures(self.filedock.features() ^ QDockWidget.DockWidgetFloatable)  # 改动之后出现关闭按钮
+        self.filedock.setFeatures(self.filedock.features() ^ QDockWidget.DockWidgetFloatable)
 
         self.dockFeatures = QDockWidget.DockWidgetClosable | QDockWidget.DockWidgetFloatable
         self.dock.setFeatures(self.dock.features() ^ self.dockFeatures)
@@ -628,7 +628,8 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.recentFiles = recentFileQStringList = settings.get(SETTING_RECENT_FILES)
 
-        size = settings.get(SETTING_WIN_SIZE, QSize(1000, 800))
+        size = settings.get(SETTING_WIN_SIZE, QSize(1200, 800))
+
         position = QPoint(0, 0)
         saved_position = settings.get(SETTING_WIN_POSE, position)
         # Fix the multiple monitors issue
