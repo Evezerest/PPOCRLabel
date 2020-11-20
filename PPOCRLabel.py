@@ -57,7 +57,7 @@ from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
-__appname__ = 'AutoLabel'
+__appname__ = 'PPOCRLabel'
 
 
 class WindowMixin(object):
@@ -1894,7 +1894,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadFile(self.filePath)
                 self.setDirty()
             elif len(self.result_dic) == len(self.canvas.shapes) and rec_flag == 0:
-                QMessageBox.information(self, "Information", "Not any change!")
+                QMessageBox.information(self, "Information", "The recognition result remains unchanged!")
             else:
                 print('Can not recgonise in ', self.filePath)
         else:

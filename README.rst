@@ -1,7 +1,7 @@
-AutoLabel
-=========
+PPOCRLabel
+===========
 
-AutoLabel is a graphical semi-automatic image annotation tool.
+PPOCRLabel is a graphical semi-automatic image annotation tool.
 
 It is written in Python and uses Qt for its graphical interface.
 
@@ -33,7 +33,7 @@ Open the Anaconda Prompt and go to the `labelImg <#labelimg>`__ directory
 
     conda install pyqt=5
     pyrcc5 -o libs/resources.py resources.qrc
-    python AutoLabel.py
+    python PPOCRLabel.py
 
 
 Ubuntu Linux
@@ -46,7 +46,7 @@ Python 3 + Qt5
     sudo apt-get install pyqt5-dev-tools
     sudo pip3 install -r requirements/requirements-linux-python3.txt
     make qt5py3
-    python3 AutoLabel.py
+    python3 PPOCRLabel.py
 
 macOS
 ^^^^^
@@ -61,7 +61,7 @@ Python 3 + Qt5
     pip3 install pyqt5
 
     make qt5py3
-    python3 AutoLabel.py
+    python3 PPOCRLabel.py
 
 
 
