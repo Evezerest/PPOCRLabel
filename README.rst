@@ -5,8 +5,7 @@ AutoLabel is a graphical semi-automatic image annotation tool.
 
 It is written in Python and uses Qt for its graphical interface.
 
-Annotations are saved as XML files in PASCAL VOC format, the format used
-by `ImageNet <http://www.image-net.org/>`__.  Besides, it also supports YOLO format
+Annotations are saved as PPOCR format in a txt file
 
 
 
@@ -19,27 +18,9 @@ Installation
 Build from source
 ~~~~~~~~~~~~~~~~~
 
-Linux/Ubuntu/Mac requires at least `Python
-2.6 <https://www.python.org/getit/>`__ and has been tested with `PyQt
-4.8 <https://www.riverbankcomputing.com/software/pyqt/intro>`__. However, `Python
+Linux/Ubuntu/Mac requires `Python
 3 or above <https://www.python.org/getit/>`__ and  `PyQt5 <https://pypi.org/project/PyQt5/>`__ are strongly recommended.
 
-
-Windows
-^^^^^^^
-
-Install `Python <https://www.python.org/downloads/windows/>`__,
-`PyQt5 <https://www.riverbankcomputing.com/software/pyqt/download5>`__
-and `install lxml <http://lxml.de/installation.html>`__.
-
-
-.. code:: shell
-
-    pyrcc4 -o lib/resources.py resources.qrc
-    For pyqt5, pyrcc5 -o libs/resources.py resources.qrc
-
-    python AutoLabel.py
-    python AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 
 Windows + Anaconda
 ^^^^^^^^^^^^^^^^^^
@@ -51,25 +32,14 @@ Open the Anaconda Prompt and go to the `labelImg <#labelimg>`__ directory
 .. code:: shell
 
     conda install pyqt=5
-    conda install -c anaconda lxml
     pyrcc5 -o libs/resources.py resources.qrc
     python AutoLabel.py
-    python AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 
 
 Ubuntu Linux
 ^^^^^^^^^^^^
-Python 2 + Qt4
 
-.. code:: shell
-
-    sudo apt-get install pyqt4-dev-tools
-    sudo pip install lxml
-    make qt4py2
-    python AutoLabel.py
-    python AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
-
-Python 3 + Qt5 (Recommended)
+Python 3 + Qt5
 
 .. code:: shell
 
@@ -77,96 +47,54 @@ Python 3 + Qt5 (Recommended)
     sudo pip3 install -r requirements/requirements-linux-python3.txt
     make qt5py3
     python3 AutoLabel.py
-    python3 AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 
 macOS
 ^^^^^
-Python 2 + Qt4
-
-.. code:: shell
-
-    brew install qt qt4
-    brew install libxml2
-    make qt4py2
-    python AutoLabel.py
-    python AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
-
-Python 3 + Qt5 (Recommended)
+Python 3 + Qt5 
 
 .. code:: shell
 
     brew install qt  # Install qt-5.x.x by Homebrew
-    brew install libxml2
 
     or using pip
 
-    pip3 install pyqt5 lxml # Install qt and lxml by pip
+    pip3 install pyqt5
 
     make qt5py3
     python3 AutoLabel.py
-    python3 AutoLabel.py [IMAGE_PATH] [PRE-DEFINED CLASS FILE]
 
 
 
 Usage
 -----
 
-Steps (PascalVOC)
-~~~~~~~~~~~~~~~~~
+Steps
+~~~~~~~~~~
 
 1. Build and launch using the instructions above.
-2. Click 'Change default saved annotation folder' in Menu/File
-3. Click 'Open Dir'
-4. Click 'Create RectBox'
-5. Click and release left mouse to select a region to annotate the rect
-   box
-6. You can use right mouse to drag the rect box to copy or move it
-
-The annotation will be saved to the folder you specify.
-
-You can refer to the below hotkeys to speed up your workflow.
-
-Steps (YOLO)
-~~~~~~~~~~~~
-
-1. In ``data/predefined_classes.txt`` define the list of classes that will be used for your training.
-
-2. Build and launch using the instructions above.
-
-3. Right below "Save" button in the toolbar, click "PascalVOC" button to switch to YOLO format.
-
-4. You may use Open/OpenDIR to process single or multiple images. When finished with a single image, click save.
-
-A txt file of YOLO format will be saved in the same folder as your image with same name. A file named "classes.txt" is saved to that folder too. "classes.txt" defines the list of class names that your YOLO label refers to.
+2. Click 'Open Dir' in Menu/File
+3. Click 'Auto recognition', use PPOCR model to automatically annotate images which marked with 'X' before the file name. 
+4. Creat Box:
+    4.1 Click 'Create RectBox' or press 'W' in English keyboard mode to draw a new rectangle detection box. Click and release left mouse to select a region to annotate the rect box.
+    
+    4.2 Press 'P' to enter four-point labeling mode which enables you to creat any four-point shape by clicking four points with the left mouse button in succession and DOUBLE CLICK the left mouse as the signal of labeling completion.
+    
+5. Click 're-Recognition', model will rewrite ALL recognition results in ALL detection box.
+6. Double click the result in 'recognition result' list to manually change inaccurate recognition results.
+7. Click 'Save' to save the annotation of this image.
 
 Note:
+~~~~~~~
+- The annotation will be saved to the folder as same as the picture path you opened. 'label.txt' stores the labels you manually confirmed.
 
-- Your label list shall not change in the middle of processing a list of images. When you save an image, classes.txt will also get updated, while previous annotations will not be updated.
+- If you manually enter the recognition result after drawing the box, the result will be overwritten after clicking re-Recognition by the model.
 
-- You shouldn't use "default class" function when saving to YOLO format, it will not be referred.
-
-- When saving as YOLO format, "difficult" flag is discarded.
-
-Create pre-defined classes
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can edit the
-`data/predefined\_classes.txt <https://github.com/tzutalin/labelImg/blob/master/data/predefined_classes.txt>`__
-to load pre-defined classes
 
 Hotkeys
 ~~~~~~~
 
 +------------+--------------------------------------------+
-| Ctrl + u   | Load all of the images from a directory    |
-+------------+--------------------------------------------+
-| Ctrl + r   | Change the default annotation target dir   |
-+------------+--------------------------------------------+
-| Ctrl + s   | Save                                       |
-+------------+--------------------------------------------+
-| Ctrl + d   | Copy the current label and rect box        |
-+------------+--------------------------------------------+
-| Space      | Flag the current image as verified         |
+| p          | Create a fout-point box                    |
 +------------+--------------------------------------------+
 | w          | Create a rect box                          |
 +------------+--------------------------------------------+
@@ -176,6 +104,8 @@ Hotkeys
 +------------+--------------------------------------------+
 | del        | Delete the selected rect box               |
 +------------+--------------------------------------------+
+| Ctrl + s   | Save                                       |
++------------+--------------------------------------------+
 | Ctrl++     | Zoom in                                    |
 +------------+--------------------------------------------+
 | Ctrl--     | Zoom out                                   |
@@ -183,15 +113,6 @@ Hotkeys
 | ↑→↓←       | Keyboard arrows to move selected rect box  |
 +------------+--------------------------------------------+
 
-**Verify Image:**
-
-When pressing space, the user can flag the image as verified, a green background will appear.
-This is used when creating a dataset automatically, the user can then through all the pictures and flag them instead of annotate them.
-
-**Difficult:**
-
-The difficult field is set to 1 indicates that the object has been annotated as "difficult", for example, an object which is clearly visible but difficult to recognize without substantial use of context.
-According to your deep neural network implementation, you can include or exclude difficult objects during training.
 
 How to reset the settings
 ~~~~~~~~~~~~~~~~~~~~~~~~~
