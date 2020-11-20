@@ -11,7 +11,7 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
-from win32com.shell import shell,shellcon
+
 
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -1705,12 +1705,23 @@ class MainWindow(QMainWindow, WindowMixin):
         if deletePath is not None:
             deleteInfo = self.deleteImgDialog()
             if deleteInfo == QMessageBox.Yes:
-
-                res = shell.SHFileOperation((0, shellcon.FO_DELETE, deletePath, None,
-                                             shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,
-                                             None, None))
-                if not res[1]:
-                    os.system('del ' + deletePath)
+                if platform.system() == 'Windows':
+                    from win32com.shell import shell, shellcon
+                    shell.SHFileOperation((0, shellcon.FO_DELETE, deletePath, None,
+                                               shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,
+                                               None, None))
+                    # linux
+                elif platform.system() == 'Linux':
+                    cmd = 'trash ' + deletePath
+                    os.system(cmd)
+                    # macOS
+                elif platform.system() == 'Darwin':
+                    import subprocess
+                    absPath = os.path.abspath(deletePath).replace('\\', '\\\\').replace('"', '\\"')
+                    cmd = ['osascript', '-e',
+                           'tell app "Finder" to move {the POSIX file "' + absPath + '"} to trash']
+                    print(cmd)
+                    subprocess.call(cmd, stdout=open(os.devnull, 'w'))
 
                 if self.filePath in self.fileStatedict.keys():
                     self.fileStatedict.pop(self.filePath)
