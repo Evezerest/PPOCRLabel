@@ -1846,7 +1846,11 @@ class MainWindow(QMainWindow, WindowMixin):
             self.iconlist.addItem(item)
 
     def getImglabelidx(self, filePath):
-        filepathsplit = filePath.split('\\')[-2:]
+        if platform.system()=='Windows':
+            spliter = '\\'
+        else:
+            spliter = '/'
+        filepathsplit = filePath.split(spliter)[-2:]
         return filepathsplit[0] + '/' + filepathsplit[1]
 
     def autoRecognition(self):
