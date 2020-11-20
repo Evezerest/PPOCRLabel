@@ -1411,7 +1411,7 @@ class MainWindow(QMainWindow, WindowMixin):
         """Figure out the size of the pixmap in order to fit the main widget."""
         e = 2.0  # So that no scrollbars are generated.
         w1 = self.centralWidget().width() - e
-        h1 = self.centralWidget().height() - e
+        h1 = self.centralWidget().height() - e -110
         a1 = w1 / h1
         # Calculate a new scale value based on the pixmap's aspect ratio.
         w2 = self.canvas.pixmap.width() - 0.0
