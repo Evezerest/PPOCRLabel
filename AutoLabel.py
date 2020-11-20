@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 准备只将原来的界面布局改掉，但发现比较困难
 # pyrcc5 -o libs/resources.py resources.qrc
 import argparse
 import ast
@@ -15,8 +14,6 @@ import json
 from win32com.shell import shell,shellcon
 
 
-
-# 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(__dir__)
 sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
@@ -71,7 +68,7 @@ class WindowMixin(object):
             addActions(menu, actions)
         return menu
 
-    def toolbar(self, title, actions=None):  # 顶和底层
+    def toolbar(self, title, actions=None):  
         toolbar = ToolBar(title)
         toolbar.setObjectName(u'%sToolBar' % title)
         # toolbar.setOrientation(Qt.Vertical)
@@ -91,7 +88,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Load setting in the main thread
         self.settings = Settings()
-        self.settings.load()  # 读入现有的设置
+        self.settings.load()  
         settings = self.settings
 
         # Load string bundle for i18n
@@ -100,7 +97,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         self.defaultSaveDir = defaultSaveDir
         self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")
-        # 先启动一次模型
+
         if os.path.exists('./paddle.png'):
             result = self.ocr.ocr('./paddle.png', cls=True, det=True)
 
@@ -142,7 +139,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.PPreader = None
         self.autoSaveNum = 10
 
-        ################# 文件列表  ###############
+        ################# file list  ###############
         self.fileListWidget = QListWidget()
         self.fileListWidget.itemClicked.connect(self.fileitemDoubleClicked)
         self.fileListWidget.setIconSize(QSize(25, 25))
