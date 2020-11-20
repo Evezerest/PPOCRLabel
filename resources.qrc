@@ -3,6 +3,8 @@
 
 <file alias="help">resources/icons/help.png</file>
 <file alias="app">resources/icons/app.png</file>
+<file alias="Auto">resources/icons/Auto.png</file>
+<file alias="reRec">resources/icons/reRec.png</file>
 <file alias="expert">resources/icons/expert2.png</file>
 <file alias="done">resources/icons/done.png</file>
 <file alias="file">resources/icons/file.png</file>
