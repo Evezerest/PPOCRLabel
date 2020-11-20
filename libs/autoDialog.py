@@ -14,7 +14,7 @@ BB = QDialogButtonBox
 
 
 class Worker(QThread):
-    progressBarValue = pyqtSignal(int)  # 更新进度条
+    progressBarValue = pyqtSignal(int)
     listValue = pyqtSignal(str)
     endsignal = pyqtSignal(int, str)
     handle = 0
@@ -45,9 +45,8 @@ class Worker(QThread):
                             cond = res[1][1]
                             posi = res[0]
                             self.listValue.emit("文字:" + chars + " 置信度:" + str(cond) + " 坐标:" + json.dumps(posi))
-                        # self.filePath 存在
                         self.mainThread.result_dic = self.result_dic
-                        self.mainThread.filePath = Imgpath  # 文件路径
+                        self.mainThread.filePath = Imgpath
                         # 保存
                         self.mainThread.saveFile(mode='Auto')
                     findex += 1
@@ -144,7 +143,7 @@ class AutoDialog(QDialog):
         print("???")
         # if self.thread_1.isRunning():
         #     self.thread_1.quit()
-        #     # 强制
+        #
         #     # self._thread.terminate()
         # # del self.thread_1
         # super(AutoDialog, self).closeEvent(event)

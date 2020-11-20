@@ -458,10 +458,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
         ######## New actions #######
         AutoRec = action(getStr('autoRecognition'), self.autoRecognition,
-                      'Ctrl+Shif+A', 'Auto', getStr('autoRecognition'), enabled=False)
+                      'Ctrl+Shift+A', 'Auto', getStr('autoRecognition'), enabled=False)
 
         reRec = action(getStr('reRecognition'), self.reRecognition, 
-                      'Ctrl+Shif+R', 'reRec', getStr('reRecognition'), enabled=False)
+                      'Ctrl+Shift+R', 'reRec', getStr('reRecognition'), enabled=False)
 
         createpoly = action(getStr('creatPolygon'), self.createPolygon,
                             'p', 'new', 'Creat Polygon', enabled=True)
@@ -1962,7 +1962,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
 
         if mode=='Manual':
-            msg = 'Labels that have been checked are saved in '+ self.PPlabelpath
+            msg = 'Images that have been checked are saved in '+ self.PPlabelpath
             QMessageBox.information(self, "Information", msg)
 
     def saveCacheLabel(self):
