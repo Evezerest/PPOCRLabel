@@ -65,7 +65,20 @@ Python 3 + Qt5
     python3 PPOCRLabel.py
 
 
+Python 3 Virtualenv (Recommended)
 
+Virtualenv can avoid a lot of the QT / Python version issues
+
+.. code:: shell
+
+    brew install python3
+    pip3 install pipenv
+    pipenv run pip install pyqt5==5.12.1
+    pipenv run make qt5py3
+    python3 PPOCRLabel.py
+    [Optional] rm -rf build dist; python setup.py py2app -A;mv "dist/labelImg.app" /Applications
+
+Note: The Last command gives you a nice .app file with a new SVG Icon in your /Applications folder. You can consider using the script: build-tools/build-for-macos.sh
 Usage
 -----
 
