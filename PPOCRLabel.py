@@ -975,8 +975,9 @@ class MainWindow(QMainWindow, WindowMixin):
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
         item = HashableQListWidgetItem(shape.label)
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked)
+        # item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        # item.setCheckState(Qt.Checked)
+        # item = 
         # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapes[item] = shape
         self.shapesToItems[shape] = item
@@ -986,8 +987,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # ADD for box
         item = HashableQListWidgetItem(str([(int(p.x()), int(p.y())) for p in shape.points]))
         # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked)
+        # item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        # item.setCheckState(Qt.Checked)
         # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapesbox[item] = shape
         self.shapesToItemsbox[shape] = item
@@ -1844,11 +1845,11 @@ class MainWindow(QMainWindow, WindowMixin):
             filename, _ = os.path.splitext(filename)
             pfilename = filename[:10]
             if len(pfilename) < 10:
-                bfilename = (12 - len(pfilename)) * " "
-            else:
-                bfilename = ""
+                lentoken = 12 - len(pfilename)
+                prelen = lentoken // 2
+                bfilename = prelen * " " + pfilename + (lentoken - prelen) * " "
             # item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename + bfilename )
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename)
             # item.setForeground(QBrush(Qt.white))
             item.setToolTip(file)
             self.iconlist.addItem(item)
