@@ -291,6 +291,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.setStyleSheet("background-color:transparent; border: none;")
+        self.iconlist.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         # self.iconlist.setStyleSheet('border: none;')
         self.nextButton = QToolButton()
         # self.nextButton.setFixedHeight(100)
@@ -310,7 +311,7 @@ class MainWindow(QMainWindow, WindowMixin):
         iconListContainer = QWidget()
         iconListContainer.setLayout(hlayout)
         iconListContainer.setFixedHeight(100)
-        iconListContainer.setFixedWidth(530)
+        # iconListContainer.setFixedWidth(530)
         # op = QGraphicsOpacityEffect()
         # op.setOpacity(0.5)
         # iconListContainer.setGraphicsEffect(op)
@@ -913,7 +914,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
@@ -921,7 +922,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def CanvasSizeChange(self):
@@ -1844,14 +1845,20 @@ class MainWindow(QMainWindow, WindowMixin):
             filename, _ = os.path.splitext(filename)
             pfilename = filename[:10]
             if len(pfilename) < 10:
-                bfilename = (12 - len(pfilename)) * " "
-            else:
-                bfilename = ""
+                lentoken = 12 - len(pfilename)
+                prelen = lentoken // 2
+                bfilename = prelen * " " + pfilename + (lentoken - prelen) * " "
             # item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename + bfilename )
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename)
             # item.setForeground(QBrush(Qt.white))
             item.setToolTip(file)
             self.iconlist.addItem(item)
+        owidth = 0
+        for index in range(len(self.mImgList5)):
+            item = self.iconlist.item(index)
+            itemwidget = self.iconlist.visualItemRect(item)
+            owidth += itemwidget.width()
+        self.iconlist.setMinimumWidth(owidth + 50)
 
     def getImglabelidx(self, filePath):
         if platform.system()=='Windows':
