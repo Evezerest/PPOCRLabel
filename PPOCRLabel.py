@@ -291,6 +291,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.setStyleSheet("background-color:transparent; border: none;")
+        self.iconlist.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         # self.iconlist.setStyleSheet('border: none;')
         self.nextButton = QToolButton()
         # self.nextButton.setFixedHeight(100)
@@ -310,7 +311,7 @@ class MainWindow(QMainWindow, WindowMixin):
         iconListContainer = QWidget()
         iconListContainer.setLayout(hlayout)
         iconListContainer.setFixedHeight(100)
-        iconListContainer.setFixedWidth(530)
+        # iconListContainer.setFixedWidth(530)
         # op = QGraphicsOpacityEffect()
         # op.setOpacity(0.5)
         # iconListContainer.setGraphicsEffect(op)
@@ -913,7 +914,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
@@ -921,7 +922,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def CanvasSizeChange(self):
@@ -975,9 +976,8 @@ class MainWindow(QMainWindow, WindowMixin):
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
         item = HashableQListWidgetItem(shape.label)
-        # item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        # item.setCheckState(Qt.Checked)
-        # item = 
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
         # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapes[item] = shape
         self.shapesToItems[shape] = item
@@ -987,8 +987,8 @@ class MainWindow(QMainWindow, WindowMixin):
         # ADD for box
         item = HashableQListWidgetItem(str([(int(p.x()), int(p.y())) for p in shape.points]))
         # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
-        # item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        # item.setCheckState(Qt.Checked)
+        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+        item.setCheckState(Qt.Checked)
         # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapesbox[item] = shape
         self.shapesToItemsbox[shape] = item
@@ -1853,6 +1853,12 @@ class MainWindow(QMainWindow, WindowMixin):
             # item.setForeground(QBrush(Qt.white))
             item.setToolTip(file)
             self.iconlist.addItem(item)
+        owidth = 0
+        for index in range(len(self.mImgList5)):
+            item = self.iconlist.item(index)
+            itemwidget = self.iconlist.visualItemRect(item)
+            owidth += itemwidget.width()
+        self.iconlist.setMinimumWidth(owidth + 50)
 
     def getImglabelidx(self, filePath):
         if platform.system()=='Windows':
