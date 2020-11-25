@@ -24,6 +24,15 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
+<<<<<<< HEAD:PPOCRLabel.py
+=======
+from win32com.shell import shell,shellcon
+from pathlib import Path
+import tarfile
+import requests
+import shutil
+from tqdm import tqdm
+>>>>>>> dev:AutoLabel.py
 
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -66,7 +75,12 @@ from libs.toolBar import ToolBar
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
+<<<<<<< HEAD:PPOCRLabel.py
 __appname__ = 'PPOCRLabel'
+=======
+__appname__ = 'AutoLabel'
+BASE_DIR = os.path.expanduser("~/.paddleocr/")
+>>>>>>> dev:AutoLabel.py
 
 
 class WindowMixin(object):
@@ -192,6 +206,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.reRecogButton.setFixedSize(QSize(80,30))
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
+
+        # self.reRecogButton.setIcon(newIcon())
+        # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.newButton.setFixedSize(QSize(80, 30))
@@ -1916,8 +1933,156 @@ class MainWindow(QMainWindow, WindowMixin):
             QMessageBox.information(self, "Information", "Draw a box!")
 
 
+    def seclectmodel(self):
+        print('model change')
+        print(self.comboBox.currentText())
+    
+    # 模型切换功能
     def autolcm(self):
         print('autolabelchoosemodel')
+        vbox = QVBoxLayout() # 纵向布局
+        hbox = QHBoxLayout() # 横向布局
+        self.panel = QLabel()
+        self.panel.setText("自动标注配置模型")
+        self.panel.setAlignment(Qt.AlignLeft)
+        self.comboBox = QComboBox()
+        self.comboBox.setObjectName("comboBox")        
+        self.comboBox.addItems(['mobile','server','slim'])
+        vbox.addWidget(self.panel)
+        vbox.addWidget(self.comboBox)
+        self.dialog=QDialog()
+        self.dialog.resize(600,200)
+        self.okBtn=QPushButton("确定")
+        self.cancelBtn=QPushButton("取消")
+        # 绑定事件
+        self.okBtn.clicked.connect(self.ok)
+        self.cancelBtn.clicked.connect(self.cancel)
+        self.dialog.setWindowTitle("选择模型配置文件")
+        # okBtn.move(50,50)#使用layout布局设置，因此move效果失效
+        # 确定与取消按钮横向布局
+        hbox.addWidget(self.okBtn)
+        hbox.addWidget(self.cancelBtn)
+        # 消息label与按钮组合纵向布局
+        vbox.addWidget(self.panel)
+        vbox.addLayout(hbox)
+        self.dialog.setLayout(vbox)
+        self.dialog.setWindowModality(Qt.ApplicationModal)# 该模式下，只有该dialog关闭，才可以关闭父界面
+        self.dialog.exec_()
+
+       # 槽函数如下：
+    def ok(self):
+        det_model_dir = os.path.join(BASE_DIR, 'det')
+        rec_model_dir = os.path.join(BASE_DIR, 'rec/{}'.format('cn'))
+        cls_model_dir = os.path.join(BASE_DIR, 'cls')
+        print(self.comboBox.currentText())
+        if self.comboBox.currentText() == "mobile":
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/mobile/det/ch_ppocr_mobile_v1.1_det_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile/rec/ch_ppocr_mobile_v1.1_rec_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
+            }
+        elif self.comboBox.currentText() == "server":
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/server/det/ch_ppocr_server_v1.1_det_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/server/rec/ch_ppocr_server_v1.1_rec_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
+            }
+        else:
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/det/ch_ppocr_mobile_v1.1_det_prune_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/rec/ch_ppocr_mobile_v1.1_rec_quant_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_quant_infer.tar'
+            }
+        self.model_download(det_model_dir, model_urls['det'])
+        self.model_download(rec_model_dir, model_urls['rec']['ch']['url'])
+        self.model_download(cls_model_dir, model_urls['cls'])
+        self.dialog.close()
+    def cancel(self):
+        print("取消保存！")
+        self.dialog.close() 
+
+    # 下载模型
+    def download_with_progressbar(self, url, save_path):
+        response = requests.get(url, stream=True)
+        total_size_in_bytes = int(response.headers.get('content-length', 0))
+        block_size = 1024  # 1 Kibibyte
+        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+        with open(save_path, 'wb') as file:
+            for data in response.iter_content(block_size):
+                progress_bar.update(len(data))
+                file.write(data)
+        progress_bar.close()
+        if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+            logger.error("ERROR, something went wrong")
+            sys.exit(0)
+
+    def model_download(self, model_storage_directory, url):
+        # using custom model
+        if os.path.exists(os.path.join(
+                model_storage_directory, 'model')) or os.path.exists(
+                    os.path.join(model_storage_directory, 'params')):
+            shutil.rmtree(model_storage_directory)
+            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
+            print('download {} to {}'.format(url, tmp_path))
+            os.makedirs(model_storage_directory, exist_ok=True)
+            self.download_with_progressbar(url, tmp_path)
+            with tarfile.open(tmp_path, 'r') as tarObj:
+                for member in tarObj.getmembers():
+                    if "model" in member.name:
+                        filename = 'model'
+                    elif "params" in member.name:
+                        filename = 'params'
+                    else:
+                        continue
+                    file = tarObj.extractfile(member)
+                    with open(
+                            os.path.join(model_storage_directory, filename),
+                            'wb') as f:
+                        f.write(file.read())
+            os.remove(tmp_path)
+        else:
+            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
+            print('download {} to {}'.format(url, tmp_path))
+            os.makedirs(model_storage_directory, exist_ok=True)
+            self.download_with_progressbar(url, tmp_path)
+            with tarfile.open(tmp_path, 'r') as tarObj:
+                for member in tarObj.getmembers():
+                    if "model" in member.name:
+                        filename = 'model'
+                    elif "params" in member.name:
+                        filename = 'params'
+                    else:
+                        continue
+                    file = tarObj.extractfile(member)
+                    with open(
+                            os.path.join(model_storage_directory, filename),
+                            'wb') as f:
+                        f.write(file.read())
+            os.remove(tmp_path)     
 
     def loadFilestate(self, saveDir):
         self.fileStatepath = saveDir + '/fileState.txt'
