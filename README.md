@@ -1,49 +1,43 @@
 # PPOCRLabel
 
-PPOCRLabel是一款适用于OCR领域的半自动化图形标注工具，使用python3和pyqt5编写，导出格式可直接用于PPOCR检测和识别模型的训练
+PPOCRLabel是一款适用于OCR领域的半自动化图形标注工具，使用python3和pyqt5编写，支持矩形框标注和四点标注模式，导出格式可直接用于PPOCR检测和识别模型的训练。
 
-- 自动标注演示
-
-<img src="./data/gif/autoLabel.gif" width="100%"/>
-
-- 重新识别演示
-
-<img src="./data/gif/re-recognition.gif"/>  
-
-
+<img src="./data/gif/steps.gif" width="100%"/>
 
 ## 安装
 
-**需要首先安装paddleOCR或将项目文件放置在paddleOCR目录下，并将路径切换到PaddleOCR中**
+### 1. 安装PaddleOCR
+参考[PaddleOCR安装文档](https://github.com/PaddlePaddle/PaddleOCR/blob/develop/doc/doc_ch/installation.md)准备好PaddleOCR
 
-### Windows + Anaconda
+### 2. 安装PPOCRLabel
+#### Windows + Anaconda
 
 下载安装[Anaconda](https://www.anaconda.com/download/#download) (Python 3+)
 
 ```
 conda install pyqt=5
-cd ./tools/PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
+cd ./PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
 pyrcc5 -o libs/resources.py resources.qrc
 python PPOCRLabel.py
 ```
 
-### Ubuntu Linux
+#### Ubuntu Linux
 
 ```
 sudo apt-get install pyqt5-dev-tools
 sudo apt-get install trash-cli
-cd ./tools/PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
+cd ./PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
 sudo pip3 install -r requirements/requirements-linux-python3.txt
 make qt5py3
 python3 PPOCRLabel.py
 ```
 
-### macOS
+#### macOS
 ```
 pip3 install pyqt5
 pip3 uninstall opencv-python # 由于mac版本的opencv与pyqt有冲突，需先手动卸载opencv
 pip3 install opencv-contrib-python-headless # 安装headless版本的open-cv
-cd ./tools/PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
+cd ./PPOCRLabel # 将目录切换到PPOCRLabel文件夹下
 make qt5py3
 python3 PPOCRLabel.py
 ```
@@ -81,6 +75,6 @@ python3 PPOCRLabel.py
 |  rec_gt.txt   | 识别标签。可直接用于PPOCR识别模型训练。需用户手动点击菜单栏“PaddleOCR” - "保存识别结果"后产生。 |
 |   crop_img    |   识别数据。按照检测框切割后的图片。与rec_gt.txt同时产生。   |
 
-## 参考资料
+### 参考资料
 
 1.[Tzutalin. LabelImg. Git code (2015)](https://github.com/tzutalin/labelImg)

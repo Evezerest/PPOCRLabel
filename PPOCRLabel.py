@@ -29,6 +29,7 @@ import json
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(__dir__)
 sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
+sys.path.append("..")
 
 from paddleocr import PaddleOCR
 
@@ -108,8 +109,8 @@ class MainWindow(QMainWindow, WindowMixin):
         self.defaultSaveDir = defaultSaveDir
         self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=True, lang="ch")
 
-        if os.path.exists('./paddle.png'):
-            result = self.ocr.ocr('./paddle.png', cls=True, det=True)
+        if os.path.exists('./data/paddle.png'):
+            result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
 
         # For loading all image under a directory
         self.mImgList = []
@@ -431,6 +432,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
+        showSteps = action(getStr('steps'), self.showStepsDialog, None, 'help', getStr('steps'))
 
         zoom = QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
@@ -583,7 +585,7 @@ class MainWindow(QMainWindow, WindowMixin):
         addActions(self.menus.file,
                    (opendir, None, save,  resetAll, deleteImg, quit))
 
-        addActions(self.menus.help, (help, showInfo))
+        addActions(self.menus.help, (showSteps, showInfo))
         addActions(self.menus.view, (
             self.displayLabelOption, # labels,
              None,
@@ -782,6 +784,10 @@ class MainWindow(QMainWindow, WindowMixin):
     def showInfoDialog(self):
         from libs.__init__ import __version__
         msg = u'Name:{0} \nApp Version:{1} \n{2} '.format(__appname__, __version__, sys.version_info)
+        QMessageBox.information(self, u'Information', msg)
+
+    def showStepsDialog(self):
+        msg = steps()
         QMessageBox.information(self, u'Information', msg)
 
     def createShape(self):
