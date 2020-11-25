@@ -8,7 +8,7 @@ PPOCRLabel是一款适用于OCR领域的半自动化图形标注工具，使用p
 
 - 重新识别演示
 
-<img src="./data/gif/re-recognition.gif"/>  
+<img src="./data/gif/re-recognition.gif" width="100%"/>  
 
 
 
