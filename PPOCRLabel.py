@@ -1,3 +1,16 @@
+# Copyright (c) <2015-Present> Tzutalin
+# Copyright (C) 2013  MIT, Computer Science and Artificial Intelligence Laboratory. Bryan Russell, Antonio Torralba,
+# William T. Freeman. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction, including without
+# limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+# SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+# CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # pyrcc5 -o libs/resources.py resources.qrc
@@ -11,7 +24,6 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
-
 
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -50,10 +62,6 @@ from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
 from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
 from libs.toolBar import ToolBar
-from libs.pascal_voc_io import PascalVocReader
-from libs.pascal_voc_io import XML_EXT
-from libs.yolo_io import YoloReader
-from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
@@ -82,7 +90,7 @@ class WindowMixin(object):
 class MainWindow(QMainWindow, WindowMixin):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
 
-    def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
+    def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None, language="zh-CN"):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
@@ -92,11 +100,13 @@ class MainWindow(QMainWindow, WindowMixin):
         settings = self.settings
 
         # Load string bundle for i18n
-        self.stringBundle = StringBundle.getBundle(localeStr="zh-CN") # 'en'
+        if language not in ['zh-CN', 'en']:
+            language = 'zh-CN'
+        self.stringBundle = StringBundle.getBundle(localeStr=language) # 'en'
         getStr = lambda strId: self.stringBundle.getString(strId)
 
         self.defaultSaveDir = defaultSaveDir
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=True, lang="ch")
 
         if os.path.exists('./paddle.png'):
             result = self.ocr.ocr('./paddle.png', cls=True, det=True)
@@ -506,9 +516,9 @@ class MainWindow(QMainWindow, WindowMixin):
                                 icon='color', tip=getStr('shapeFillColorDetail'),
                                 enabled=False)
 
-        labels = self.dock.toggleViewAction()
-        labels.setText(getStr('showHide'))
-        labels.setShortcut('Ctrl+Shift+L')
+        # labels = self.dock.toggleViewAction()
+        # labels.setText(getStr('showHide'))
+        # labels.setShortcut('Ctrl+Shift+L')
 
         # Label list context menu.
         labelMenu = QMenu()
@@ -575,8 +585,8 @@ class MainWindow(QMainWindow, WindowMixin):
 
         addActions(self.menus.help, (help, showInfo))
         addActions(self.menus.view, (
-            self.displayLabelOption,
-            labels, None,
+            self.displayLabelOption, # labels,
+             None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
             fitWindow, fitWidth))
@@ -870,23 +880,23 @@ class MainWindow(QMainWindow, WindowMixin):
 
         imageSize = str(self.image.size())
         width, height = self.image.width(), self.image.height()
-        try:
-            text_list = eval(text)
-        except:
-            msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the correct format')
-            msg_box.exec_()
-            return
-        if len(text_list) < 4:
-            msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the coordinates of 4 points')
-            msg_box.exec_()
-            return
-        for box in text_list:
-            if box[0] > width or box[0] < 0 or box[1] > height or box[1] < 0:
-                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Out of picture size')
+        if text:
+            try:
+                text_list = eval(text)
+            except:
+                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the correct format')
                 msg_box.exec_()
                 return
+            if len(text_list) < 4:
+                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the coordinates of 4 points')
+                msg_box.exec_()
+                return
+            for box in text_list:
+                if box[0] > width or box[0] < 0 or box[1] > height or box[1] < 0:
+                    msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Out of picture size')
+                    msg_box.exec_()
+                    return
 
-        if text is not None:
             item.setText(text)
             # item.setBackground(generateColorByText(text))
             self.setDirty()
@@ -1360,26 +1370,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.loadLabels(shapes)
         self.canvas.verified = False
 
-    def validAnnoExist(self, filePath):
-        if self.defaultSaveDir is not None:
-            basename = os.path.basename(
-                os.path.splitext(filePath)[0])
-            xmlPath = os.path.join(self.defaultSaveDir, basename + XML_EXT)
-            txtPath = os.path.join(self.defaultSaveDir, basename + TXT_EXT)
-            """Annotation file priority:
-            PascalXML > YOLO
-            """
-            if os.path.isfile(xmlPath):
-                return True
-            elif os.path.isfile(txtPath):
-                return True
-        else:
-            xmlPath = os.path.splitext(filePath)[0] + XML_EXT
-            txtPath = os.path.splitext(filePath)[0] + TXT_EXT
-            if os.path.isfile(xmlPath):
-                return True
-            elif os.path.isfile(txtPath):
-                return True
 
     def validFilestate(self, filePath):
         if filePath not in self.fileStatedict.keys():
@@ -1497,20 +1487,21 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastOpenDir = targetDirPath
         self.importDirImages(targetDirPath)
 
-    def importDirImages(self, dirpath):
+    def importDirImages(self, dirpath, isDelete = False):
         if not self.mayContinue() or not dirpath:
             return
         if self.defaultSaveDir and self.defaultSaveDir != dirpath:
             self.saveFilestate()
             self.savePPlabel()
 
-        self.loadFilestate(dirpath)
-        self.PPlabelpath = dirpath+ '/Label.txt'
-        self.PPlabel = self.loadLabelFile(self.PPlabelpath)
-        self.Cachelabelpath = dirpath + '/Cache.cach'
-        self.Cachelabel = self.loadLabelFile(self.Cachelabelpath)
-        if self.Cachelabel:
-            self.PPlabel = dict(self.Cachelabel, **self.PPlabel)
+        if not isDelete:
+            self.loadFilestate(dirpath)
+            self.PPlabelpath = dirpath+ '/Label.txt'
+            self.PPlabel = self.loadLabelFile(self.PPlabelpath)
+            self.Cachelabelpath = dirpath + '/Cache.cach'
+            self.Cachelabel = self.loadLabelFile(self.Cachelabelpath)
+            if self.Cachelabel:
+                self.PPlabel = dict(self.Cachelabel, **self.PPlabel)
         self.lastOpenDir = dirpath
         self.dirname = dirpath
 
@@ -1730,7 +1721,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 if imgidx in self.PPlabel.keys():
                     self.PPlabel.pop(imgidx)
                 self.openNextImg()
-                self.importDirImages(self.lastOpenDir)
+                self.importDirImages(self.lastOpenDir, isDelete=True)
 
     def deleteImgDialog(self):
         yes, cancel = QMessageBox.Yes, QMessageBox.Cancel
@@ -1885,7 +1876,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def reRecognition(self):
         img = cv2.imread(self.filePath)
-
+        # org_box = [dic['points'] for dic in self.PPlabel[self.getImglabelidx(self.filePath)]]
         if self.canvas.shapes:
             self.result_dic = []
             rec_flag = 0
@@ -2024,6 +2015,7 @@ def get_main_app(argv=[]):
     # Tzutalin 201705+: Accept extra agruments to change predefined class file
     argparser = argparse.ArgumentParser()
     argparser.add_argument("image_dir", nargs="?")
+    argparser.add_argument("language", default='zh-CN',nargs="?")
     argparser.add_argument("predefined_classes_file",
                            default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"),
                            nargs="?")
@@ -2032,7 +2024,8 @@ def get_main_app(argv=[]):
     # Usage : labelImg.py image predefClassFile saveDir
     win = MainWindow(args.image_dir,
                      args.predefined_classes_file,
-                     args.save_dir)
+                     args.save_dir,
+                     args.language)
     win.show()
     return app, win
 
