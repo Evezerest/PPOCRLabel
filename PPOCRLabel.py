@@ -1,6 +1,18 @@
+# Copyright (c) <2015-Present> Tzutalin
+# Copyright (C) 2013  MIT, Computer Science and Artificial Intelligence Laboratory. Bryan Russell, Antonio Torralba,
+# William T. Freeman. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+# associated documentation files (the "Software"), to deal in the Software without restriction, including without
+# limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the
+# Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+# The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+# the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT
+# NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+# SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+# CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-# 准备只将原来的界面布局改掉，但发现比较困难
 # pyrcc5 -o libs/resources.py resources.qrc
 import argparse
 import ast
@@ -12,14 +24,21 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
+<<<<<<< HEAD:PPOCRLabel.py
+=======
 from win32com.shell import shell,shellcon
+from pathlib import Path
+import tarfile
+import requests
+import shutil
+from tqdm import tqdm
+>>>>>>> dev:AutoLabel.py
 
 
-
-# 整个项目放在PaddleOCR/tools目录下
 __dir__ = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(__dir__)
 sys.path.append(os.path.abspath(os.path.join(__dir__, '../..')))
+sys.path.append("..")
 
 from paddleocr import PaddleOCR
 
@@ -53,14 +72,15 @@ from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
 from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
 from libs.toolBar import ToolBar
-from libs.pascal_voc_io import PascalVocReader
-from libs.pascal_voc_io import XML_EXT
-from libs.yolo_io import YoloReader
-from libs.yolo_io import TXT_EXT
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
+<<<<<<< HEAD:PPOCRLabel.py
+__appname__ = 'PPOCRLabel'
+=======
 __appname__ = 'AutoLabel'
+BASE_DIR = os.path.expanduser("~/.paddleocr/")
+>>>>>>> dev:AutoLabel.py
 
 
 class WindowMixin(object):
@@ -71,7 +91,7 @@ class WindowMixin(object):
             addActions(menu, actions)
         return menu
 
-    def toolbar(self, title, actions=None):  # 顶和底层
+    def toolbar(self, title, actions=None):  
         toolbar = ToolBar(title)
         toolbar.setObjectName(u'%sToolBar' % title)
         # toolbar.setOrientation(Qt.Vertical)
@@ -85,24 +105,26 @@ class WindowMixin(object):
 class MainWindow(QMainWindow, WindowMixin):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
 
-    def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
+    def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None, language="zh-CN"):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
         # Load setting in the main thread
         self.settings = Settings()
-        self.settings.load()  # 读入现有的设置
+        self.settings.load()  
         settings = self.settings
 
         # Load string bundle for i18n
-        self.stringBundle = StringBundle.getBundle(localeStr="zh-CN") # 'en'
+        if language not in ['zh-CN', 'en']:
+            language = 'zh-CN'
+        self.stringBundle = StringBundle.getBundle(localeStr=language) # 'en'
         getStr = lambda strId: self.stringBundle.getString(strId)
 
         self.defaultSaveDir = defaultSaveDir
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, lang="ch")
-        # 先启动一次模型
-        if os.path.exists('./paddle.png'):
-            result = self.ocr.ocr('./paddle.png', cls=True, det=True)
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=True, lang="ch")
+
+        if os.path.exists('./data/paddle.png'):
+            result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
 
         # For loading all image under a directory
         self.mImgList = []
@@ -142,7 +164,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.PPreader = None
         self.autoSaveNum = 10
 
-        ################# 文件列表  ###############
+        ################# file list  ###############
         self.fileListWidget = QListWidget()
         self.fileListWidget.itemClicked.connect(self.fileitemDoubleClicked)
         self.fileListWidget.setIconSize(QSize(25, 25))
@@ -184,6 +206,9 @@ class MainWindow(QMainWindow, WindowMixin):
         self.reRecogButton.setFixedSize(QSize(80,30))
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
+
+        # self.reRecogButton.setIcon(newIcon())
+        # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.newButton.setFixedSize(QSize(80, 30))
@@ -294,6 +319,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.setStyleSheet("background-color:transparent; border: none;")
+        self.iconlist.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         # self.iconlist.setStyleSheet('border: none;')
         self.nextButton = QToolButton()
         # self.nextButton.setFixedHeight(100)
@@ -313,7 +339,7 @@ class MainWindow(QMainWindow, WindowMixin):
         iconListContainer = QWidget()
         iconListContainer.setLayout(hlayout)
         iconListContainer.setFixedHeight(100)
-        iconListContainer.setFixedWidth(530)
+        # iconListContainer.setFixedWidth(530)
         # op = QGraphicsOpacityEffect()
         # op.setOpacity(0.5)
         # iconListContainer.setGraphicsEffect(op)
@@ -423,6 +449,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         help = action(getStr('tutorial'), self.showTutorialDialog, None, 'help', getStr('tutorialDetail'))
         showInfo = action(getStr('info'), self.showInfoDialog, None, 'help', getStr('info'))
+        showSteps = action(getStr('steps'), self.showStepsDialog, None, 'help', getStr('steps'))
 
         zoom = QWidgetAction(self)
         zoom.setDefaultWidget(self.zoomWidget)
@@ -461,10 +488,10 @@ class MainWindow(QMainWindow, WindowMixin):
 
         ######## New actions #######
         AutoRec = action(getStr('autoRecognition'), self.autoRecognition,
-                      'Ctrl+Shif+A', 'Auto', getStr('autoRecognition'), enabled=False)
+                      'Ctrl+Shift+A', 'Auto', getStr('autoRecognition'), enabled=False)
 
         reRec = action(getStr('reRecognition'), self.reRecognition, 
-                      'Ctrl+Shif+R', 'reRec', getStr('reRecognition'), enabled=False)
+                      'Ctrl+Shift+R', 'reRec', getStr('reRecognition'), enabled=False)
 
         createpoly = action(getStr('creatPolygon'), self.createPolygon,
                             'p', 'new', 'Creat Polygon', enabled=True)
@@ -508,9 +535,9 @@ class MainWindow(QMainWindow, WindowMixin):
                                 icon='color', tip=getStr('shapeFillColorDetail'),
                                 enabled=False)
 
-        labels = self.dock.toggleViewAction()
-        labels.setText(getStr('showHide'))
-        labels.setShortcut('Ctrl+Shift+L')
+        # labels = self.dock.toggleViewAction()
+        # labels.setText(getStr('showHide'))
+        # labels.setShortcut('Ctrl+Shift+L')
 
         # Label list context menu.
         labelMenu = QMenu()
@@ -575,10 +602,10 @@ class MainWindow(QMainWindow, WindowMixin):
         addActions(self.menus.file,
                    (opendir, None, save,  resetAll, deleteImg, quit))
 
-        addActions(self.menus.help, (help, showInfo))
+        addActions(self.menus.help, (showSteps, showInfo))
         addActions(self.menus.view, (
-            self.displayLabelOption,
-            labels, None,
+            self.displayLabelOption, # labels,
+             None,
             hideAll, showAll, None,
             zoomIn, zoomOut, zoomOrg, None,
             fitWindow, fitWidth))
@@ -776,6 +803,10 @@ class MainWindow(QMainWindow, WindowMixin):
         msg = u'Name:{0} \nApp Version:{1} \n{2} '.format(__appname__, __version__, sys.version_info)
         QMessageBox.information(self, u'Information', msg)
 
+    def showStepsDialog(self):
+        msg = steps()
+        QMessageBox.information(self, u'Information', msg)
+
     def createShape(self):
         assert self.beginner()
         self.canvas.setEditing(False)
@@ -872,23 +903,23 @@ class MainWindow(QMainWindow, WindowMixin):
 
         imageSize = str(self.image.size())
         width, height = self.image.width(), self.image.height()
-        try:
-            text_list = eval(text)
-        except:
-            msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the correct format')
-            msg_box.exec_()
-            return
-        if len(text_list) < 4:
-            msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the coordinates of 4 points')
-            msg_box.exec_()
-            return
-        for box in text_list:
-            if box[0] > width or box[0] < 0 or box[1] > height or box[1] < 0:
-                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Out of picture size')
+        if text:
+            try:
+                text_list = eval(text)
+            except:
+                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the correct format')
                 msg_box.exec_()
                 return
+            if len(text_list) < 4:
+                msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Please enter the coordinates of 4 points')
+                msg_box.exec_()
+                return
+            for box in text_list:
+                if box[0] > width or box[0] < 0 or box[1] > height or box[1] < 0:
+                    msg_box = QMessageBox(QMessageBox.Warning, 'Warning', 'Out of picture size')
+                    msg_box.exec_()
+                    return
 
-        if text is not None:
             item.setText(text)
             # item.setBackground(generateColorByText(text))
             self.setDirty()
@@ -916,7 +947,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def iconitemDoubleClicked(self, item=None):
@@ -924,7 +955,7 @@ class MainWindow(QMainWindow, WindowMixin):
         filename = self.mImgList[self.currIndex]
         if filename:
             self.mImgList5 = self.indexTo5Files(self.currIndex)
-            self.additems5(None)
+            # self.additems5(None)
             self.loadFile(filename)
 
     def CanvasSizeChange(self):
@@ -1362,26 +1393,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.loadLabels(shapes)
         self.canvas.verified = False
 
-    def validAnnoExist(self, filePath):
-        if self.defaultSaveDir is not None:
-            basename = os.path.basename(
-                os.path.splitext(filePath)[0])
-            xmlPath = os.path.join(self.defaultSaveDir, basename + XML_EXT)
-            txtPath = os.path.join(self.defaultSaveDir, basename + TXT_EXT)
-            """Annotation file priority:
-            PascalXML > YOLO
-            """
-            if os.path.isfile(xmlPath):
-                return True
-            elif os.path.isfile(txtPath):
-                return True
-        else:
-            xmlPath = os.path.splitext(filePath)[0] + XML_EXT
-            txtPath = os.path.splitext(filePath)[0] + TXT_EXT
-            if os.path.isfile(xmlPath):
-                return True
-            elif os.path.isfile(txtPath):
-                return True
 
     def validFilestate(self, filePath):
         if filePath not in self.fileStatedict.keys():
@@ -1499,20 +1510,21 @@ class MainWindow(QMainWindow, WindowMixin):
         self.lastOpenDir = targetDirPath
         self.importDirImages(targetDirPath)
 
-    def importDirImages(self, dirpath):
+    def importDirImages(self, dirpath, isDelete = False):
         if not self.mayContinue() or not dirpath:
             return
         if self.defaultSaveDir and self.defaultSaveDir != dirpath:
             self.saveFilestate()
             self.savePPlabel()
 
-        self.loadFilestate(dirpath)
-        self.PPlabelpath = dirpath+ '/Label.txt'
-        self.PPlabel = self.loadLabelFile(self.PPlabelpath)
-        self.Cachelabelpath = dirpath + '/Cache.cach'
-        self.Cachelabel = self.loadLabelFile(self.Cachelabelpath)
-        if self.Cachelabel:
-            self.PPlabel = dict(self.Cachelabel, **self.PPlabel)
+        if not isDelete:
+            self.loadFilestate(dirpath)
+            self.PPlabelpath = dirpath+ '/Label.txt'
+            self.PPlabel = self.loadLabelFile(self.PPlabelpath)
+            self.Cachelabelpath = dirpath + '/Cache.cach'
+            self.Cachelabel = self.loadLabelFile(self.Cachelabelpath)
+            if self.Cachelabel:
+                self.PPlabel = dict(self.Cachelabel, **self.PPlabel)
         self.lastOpenDir = dirpath
         self.dirname = dirpath
 
@@ -1708,12 +1720,23 @@ class MainWindow(QMainWindow, WindowMixin):
         if deletePath is not None:
             deleteInfo = self.deleteImgDialog()
             if deleteInfo == QMessageBox.Yes:
-
-                res = shell.SHFileOperation((0, shellcon.FO_DELETE, deletePath, None,
-                                             shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,
-                                             None, None))
-                if not res[1]:
-                    os.system('del ' + deletePath)
+                if platform.system() == 'Windows':
+                    from win32com.shell import shell, shellcon
+                    shell.SHFileOperation((0, shellcon.FO_DELETE, deletePath, None,
+                                               shellcon.FOF_SILENT | shellcon.FOF_ALLOWUNDO | shellcon.FOF_NOCONFIRMATION,
+                                               None, None))
+                    # linux
+                elif platform.system() == 'Linux':
+                    cmd = 'trash ' + deletePath
+                    os.system(cmd)
+                    # macOS
+                elif platform.system() == 'Darwin':
+                    import subprocess
+                    absPath = os.path.abspath(deletePath).replace('\\', '\\\\').replace('"', '\\"')
+                    cmd = ['osascript', '-e',
+                           'tell app "Finder" to move {the POSIX file "' + absPath + '"} to trash']
+                    print(cmd)
+                    subprocess.call(cmd, stdout=open(os.devnull, 'w'))
 
                 if self.filePath in self.fileStatedict.keys():
                     self.fileStatedict.pop(self.filePath)
@@ -1721,7 +1744,7 @@ class MainWindow(QMainWindow, WindowMixin):
                 if imgidx in self.PPlabel.keys():
                     self.PPlabel.pop(imgidx)
                 self.openNextImg()
-                self.importDirImages(self.lastOpenDir)
+                self.importDirImages(self.lastOpenDir, isDelete=True)
 
     def deleteImgDialog(self):
         yes, cancel = QMessageBox.Yes, QMessageBox.Cancel
@@ -1836,14 +1859,20 @@ class MainWindow(QMainWindow, WindowMixin):
             filename, _ = os.path.splitext(filename)
             pfilename = filename[:10]
             if len(pfilename) < 10:
-                bfilename = (12 - len(pfilename)) * " "
-            else:
-                bfilename = ""
+                lentoken = 12 - len(pfilename)
+                prelen = lentoken // 2
+                bfilename = prelen * " " + pfilename + (lentoken - prelen) * " "
             # item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.KeepAspectRatio, Qt.SmoothTransformation)),filename[:10])
-            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename + bfilename )
+            item = QListWidgetItem(QIcon(pix.scaled(100, 100, Qt.IgnoreAspectRatio, Qt.FastTransformation)),pfilename)
             # item.setForeground(QBrush(Qt.white))
             item.setToolTip(file)
             self.iconlist.addItem(item)
+        owidth = 0
+        for index in range(len(self.mImgList5)):
+            item = self.iconlist.item(index)
+            itemwidget = self.iconlist.visualItemRect(item)
+            owidth += itemwidget.width()
+        self.iconlist.setMinimumWidth(owidth + 50)
 
     def getImglabelidx(self, filePath):
         if platform.system()=='Windows':
@@ -1870,7 +1899,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def reRecognition(self):
         img = cv2.imread(self.filePath)
-
+        # org_box = [dic['points'] for dic in self.PPlabel[self.getImglabelidx(self.filePath)]]
         if self.canvas.shapes:
             self.result_dic = []
             rec_flag = 0
@@ -1897,15 +1926,163 @@ class MainWindow(QMainWindow, WindowMixin):
                 self.loadFile(self.filePath)
                 self.setDirty()
             elif len(self.result_dic) == len(self.canvas.shapes) and rec_flag == 0:
-                QMessageBox.information(self, "Information", "Not any change!")
+                QMessageBox.information(self, "Information", "The recognition result remains unchanged!")
             else:
                 print('Can not recgonise in ', self.filePath)
         else:
             QMessageBox.information(self, "Information", "Draw a box!")
 
 
+    def seclectmodel(self):
+        print('model change')
+        print(self.comboBox.currentText())
+    
+    # 模型切换功能
     def autolcm(self):
         print('autolabelchoosemodel')
+        vbox = QVBoxLayout() # 纵向布局
+        hbox = QHBoxLayout() # 横向布局
+        self.panel = QLabel()
+        self.panel.setText("自动标注配置模型")
+        self.panel.setAlignment(Qt.AlignLeft)
+        self.comboBox = QComboBox()
+        self.comboBox.setObjectName("comboBox")        
+        self.comboBox.addItems(['mobile','server','slim'])
+        vbox.addWidget(self.panel)
+        vbox.addWidget(self.comboBox)
+        self.dialog=QDialog()
+        self.dialog.resize(600,200)
+        self.okBtn=QPushButton("确定")
+        self.cancelBtn=QPushButton("取消")
+        # 绑定事件
+        self.okBtn.clicked.connect(self.ok)
+        self.cancelBtn.clicked.connect(self.cancel)
+        self.dialog.setWindowTitle("选择模型配置文件")
+        # okBtn.move(50,50)#使用layout布局设置，因此move效果失效
+        # 确定与取消按钮横向布局
+        hbox.addWidget(self.okBtn)
+        hbox.addWidget(self.cancelBtn)
+        # 消息label与按钮组合纵向布局
+        vbox.addWidget(self.panel)
+        vbox.addLayout(hbox)
+        self.dialog.setLayout(vbox)
+        self.dialog.setWindowModality(Qt.ApplicationModal)# 该模式下，只有该dialog关闭，才可以关闭父界面
+        self.dialog.exec_()
+
+       # 槽函数如下：
+    def ok(self):
+        det_model_dir = os.path.join(BASE_DIR, 'det')
+        rec_model_dir = os.path.join(BASE_DIR, 'rec/{}'.format('cn'))
+        cls_model_dir = os.path.join(BASE_DIR, 'cls')
+        print(self.comboBox.currentText())
+        if self.comboBox.currentText() == "mobile":
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/mobile/det/ch_ppocr_mobile_v1.1_det_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile/rec/ch_ppocr_mobile_v1.1_rec_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
+            }
+        elif self.comboBox.currentText() == "server":
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/server/det/ch_ppocr_server_v1.1_det_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/server/rec/ch_ppocr_server_v1.1_rec_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
+            }
+        else:
+            model_urls = {
+                'det':
+                'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/det/ch_ppocr_mobile_v1.1_det_prune_infer.tar',
+                'rec': {
+                    'ch': {
+                        'url':
+                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/rec/ch_ppocr_mobile_v1.1_rec_quant_infer.tar',
+                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
+                    }
+                },
+                'cls':
+                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_quant_infer.tar'
+            }
+        self.model_download(det_model_dir, model_urls['det'])
+        self.model_download(rec_model_dir, model_urls['rec']['ch']['url'])
+        self.model_download(cls_model_dir, model_urls['cls'])
+        self.dialog.close()
+    def cancel(self):
+        print("取消保存！")
+        self.dialog.close() 
+
+    # 下载模型
+    def download_with_progressbar(self, url, save_path):
+        response = requests.get(url, stream=True)
+        total_size_in_bytes = int(response.headers.get('content-length', 0))
+        block_size = 1024  # 1 Kibibyte
+        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
+        with open(save_path, 'wb') as file:
+            for data in response.iter_content(block_size):
+                progress_bar.update(len(data))
+                file.write(data)
+        progress_bar.close()
+        if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
+            logger.error("ERROR, something went wrong")
+            sys.exit(0)
+
+    def model_download(self, model_storage_directory, url):
+        # using custom model
+        if os.path.exists(os.path.join(
+                model_storage_directory, 'model')) or os.path.exists(
+                    os.path.join(model_storage_directory, 'params')):
+            shutil.rmtree(model_storage_directory)
+            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
+            print('download {} to {}'.format(url, tmp_path))
+            os.makedirs(model_storage_directory, exist_ok=True)
+            self.download_with_progressbar(url, tmp_path)
+            with tarfile.open(tmp_path, 'r') as tarObj:
+                for member in tarObj.getmembers():
+                    if "model" in member.name:
+                        filename = 'model'
+                    elif "params" in member.name:
+                        filename = 'params'
+                    else:
+                        continue
+                    file = tarObj.extractfile(member)
+                    with open(
+                            os.path.join(model_storage_directory, filename),
+                            'wb') as f:
+                        f.write(file.read())
+            os.remove(tmp_path)
+        else:
+            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
+            print('download {} to {}'.format(url, tmp_path))
+            os.makedirs(model_storage_directory, exist_ok=True)
+            self.download_with_progressbar(url, tmp_path)
+            with tarfile.open(tmp_path, 'r') as tarObj:
+                for member in tarObj.getmembers():
+                    if "model" in member.name:
+                        filename = 'model'
+                    elif "params" in member.name:
+                        filename = 'params'
+                    else:
+                        continue
+                    file = tarObj.extractfile(member)
+                    with open(
+                            os.path.join(model_storage_directory, filename),
+                            'wb') as f:
+                        f.write(file.read())
+            os.remove(tmp_path)     
 
     def loadFilestate(self, saveDir):
         self.fileStatepath = saveDir + '/fileState.txt'
@@ -1954,7 +2131,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
 
         if mode=='Manual':
-            msg = 'Labels that have been checked are saved in '+ self.PPlabelpath
+            msg = 'Images that have been checked are saved in '+ self.PPlabelpath
             QMessageBox.information(self, "Information", msg)
 
     def saveCacheLabel(self):
@@ -2009,6 +2186,7 @@ def get_main_app(argv=[]):
     # Tzutalin 201705+: Accept extra agruments to change predefined class file
     argparser = argparse.ArgumentParser()
     argparser.add_argument("image_dir", nargs="?")
+    argparser.add_argument("language", default='zh-CN',nargs="?")
     argparser.add_argument("predefined_classes_file",
                            default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"),
                            nargs="?")
@@ -2017,7 +2195,8 @@ def get_main_app(argv=[]):
     # Usage : labelImg.py image predefClassFile saveDir
     win = MainWindow(args.image_dir,
                      args.predefined_classes_file,
-                     args.save_dir)
+                     args.save_dir,
+                     args.language)
     win.show()
     return app, win
 
