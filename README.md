@@ -1,3 +1,4 @@
+中文文档 | [English](README_en.md)
 # PPOCRLabel
 
 PPOCRLabel是一款适用于OCR领域的半自动化图形标注工具，使用python3和pyqt5编写，支持矩形框标注和四点标注模式，导出格式可直接用于PPOCR检测和识别模型的训练。
