@@ -24,15 +24,6 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
-<<<<<<< HEAD:PPOCRLabel.py
-=======
-from win32com.shell import shell,shellcon
-from pathlib import Path
-import tarfile
-import requests
-import shutil
-from tqdm import tqdm
->>>>>>> dev:AutoLabel.py
 
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -70,17 +61,12 @@ from libs.zoomWidget import ZoomWidget
 from libs.autoDialog import AutoDialog
 from libs.labelDialog import LabelDialog
 from libs.colorDialog import ColorDialog
-from libs.labelFile import LabelFile, LabelFileError, LabelFileFormat
+from libs.labelFile import LabelFile, LabelFileError
 from libs.toolBar import ToolBar
 from libs.ustr import ustr
 from libs.hashableQListWidgetItem import HashableQListWidgetItem
 
-<<<<<<< HEAD:PPOCRLabel.py
 __appname__ = 'PPOCRLabel'
-=======
-__appname__ = 'AutoLabel'
-BASE_DIR = os.path.expanduser("~/.paddleocr/")
->>>>>>> dev:AutoLabel.py
 
 
 class WindowMixin(object):
@@ -105,7 +91,7 @@ class WindowMixin(object):
 class MainWindow(QMainWindow, WindowMixin):
     FIT_WINDOW, FIT_WIDTH, MANUAL_ZOOM = list(range(3))
 
-    def __init__(self, defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None, language="zh-CN"):
+    def __init__(self, lang="ch", defaultFilename=None, defaultPrefdefClassFile=None, defaultSaveDir=None):
         super(MainWindow, self).__init__()
         self.setWindowTitle(__appname__)
 
@@ -113,15 +99,15 @@ class MainWindow(QMainWindow, WindowMixin):
         self.settings = Settings()
         self.settings.load()  
         settings = self.settings
-
+        self.lang = lang
         # Load string bundle for i18n
-        if language not in ['zh-CN', 'en']:
-            language = 'zh-CN'
-        self.stringBundle = StringBundle.getBundle(localeStr=language) # 'en'
+        if lang not in ['ch', 'en']:
+            lang = 'en'
+        self.stringBundle = StringBundle.getBundle(localeStr='zh-CN' if lang=='ch' else 'en') # 'en'
         getStr = lambda strId: self.stringBundle.getString(strId)
 
         self.defaultSaveDir = defaultSaveDir
-        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=True, lang="ch")
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=True, lang=lang)
 
         if os.path.exists('./data/paddle.png'):
             result = self.ocr.ocr('./data/paddle.png', cls=True, det=True)
@@ -175,9 +161,6 @@ class MainWindow(QMainWindow, WindowMixin):
         self.AutoRecognition = QToolButton()
         self.AutoRecognition.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
         self.AutoRecognition.setIcon(newIcon('Auto'))
-        # self.AutoRecognition.setIconSize(QSize(100,20))
-        self.AutoRecognition.setFixedSize(QSize(80,30))
-        # self.AutoRecognition.setStyleSheet('text-align:center;')#border:none;font-size : 12pt;
         autoRecLayout = QHBoxLayout()
         autoRecLayout.setContentsMargins(0, 0, 0, 0)
         autoRecLayout.addWidget(self.AutoRecognition)
@@ -196,28 +179,17 @@ class MainWindow(QMainWindow, WindowMixin):
         listLayout = QVBoxLayout()
         listLayout.setContentsMargins(0, 0, 0, 0)
 
-        # Create a widget for edit and diffc button
-        self.diffcButton = QCheckBox(getStr('useDifficult'))
-        self.diffcButton.setChecked(False)
-        self.diffcButton.stateChanged.connect(self.btnstate)
         self.editButton = QToolButton()
         self.reRecogButton = QToolButton()
         self.reRecogButton.setIcon(newIcon('reRec', 30))
-        self.reRecogButton.setFixedSize(QSize(80,30))
         self.reRecogButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
 
-
-        # self.reRecogButton.setIcon(newIcon())
-        # 增加一个新建框？或直接将下面的按钮移动到上面
         self.newButton = QToolButton()
         self.newButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.newButton.setFixedSize(QSize(80, 30))
         self.SaveButton = QToolButton()
         self.SaveButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.SaveButton.setFixedSize(QSize(60, 30))
         self.DelButton = QToolButton()
         self.DelButton.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-        self.DelButton.setFixedSize(QSize(80, 30))
 
 
         lefttoptoolbox = QHBoxLayout()
@@ -302,12 +274,9 @@ class MainWindow(QMainWindow, WindowMixin):
         hlayout.setSpacing(0)
         hlayout.setContentsMargins(*m)
         self.preButton = QToolButton()
-        # self.preButton.setFixedHeight(100)
-        # self.preButton.setText(getStr("prevImg"))
         self.preButton.setIcon(newIcon("prev",40))
         self.preButton.setIconSize(QSize(40, 100))
         self.preButton.clicked.connect(self.openPrevImg)
-        # self.preButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         self.preButton.setStyleSheet('border: none;')
         self.iconlist = QListWidget()
         self.iconlist.setViewMode(QListView.IconMode)
@@ -316,19 +285,14 @@ class MainWindow(QMainWindow, WindowMixin):
         self.iconlist.setIconSize(QSize(50, 50))
         self.iconlist.setMovement(False)
         self.iconlist.setResizeMode(QListView.Adjust)
-        # self.iconlist.itemDoubleClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.itemClicked.connect(self.iconitemDoubleClicked)
         self.iconlist.setStyleSheet("background-color:transparent; border: none;")
         self.iconlist.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        # self.iconlist.setStyleSheet('border: none;')
         self.nextButton = QToolButton()
-        # self.nextButton.setFixedHeight(100)
-        # self.nextButton.setText(getStr("nextImg"))
         self.nextButton.setIcon(newIcon("next", 40))
         self.nextButton.setIconSize(QSize(40, 100))
         self.nextButton.setStyleSheet('border: none;')
         self.nextButton.clicked.connect(self.openNextImg)
-        # self.nextButton.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
         
         hlayout.addWidget(self.preButton)
         hlayout.addWidget(self.iconlist)
@@ -440,10 +404,10 @@ class MainWindow(QMainWindow, WindowMixin):
                       'Ctrl+D', 'copy', getStr('dupBoxDetail'),
                       enabled=False)
 
-        hideAll = action('&Hide\nRectBox', partial(self.togglePolygons, False),
+        hideAll = action(getStr('hideBox'), partial(self.togglePolygons, False),
                          'Ctrl+H', 'hide', getStr('hideAllBoxDetail'),
                          enabled=False)
-        showAll = action('&Show\nRectBox', partial(self.togglePolygons, True),
+        showAll = action(getStr('showBox'), partial(self.togglePolygons, True),
                          'Ctrl+A', 'hide', getStr('showAllBoxDetail'),
                          enabled=False)
 
@@ -610,7 +574,7 @@ class MainWindow(QMainWindow, WindowMixin):
             zoomIn, zoomOut, zoomOrg, None,
             fitWindow, fitWidth))
 
-        addActions(self.menus.autolabel, (alcm, saveRec, None, help))
+        addActions(self.menus.autolabel, (alcm, saveRec, None, help)) #
 
         self.menus.file.aboutToShow.connect(self.updateFileMenu)
 
@@ -804,7 +768,7 @@ class MainWindow(QMainWindow, WindowMixin):
         QMessageBox.information(self, u'Information', msg)
 
     def showStepsDialog(self):
-        msg = steps()
+        msg = stepsInfo(self.lang)
         QMessageBox.information(self, u'Information', msg)
 
     def createShape(self):
@@ -891,7 +855,7 @@ class MainWindow(QMainWindow, WindowMixin):
             # shape.line_color = generateColorByText(shape.label)
             self.setDirty()
         else:  # User probably changed item visibility
-            self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
+            self.canvas.setShapeVisible(shape, True)#item.checkState() == Qt.Checked
 
     def editBox(self):  # ADD
         if not self.canvas.editing():
@@ -962,33 +926,6 @@ class MainWindow(QMainWindow, WindowMixin):
         if len(self.mImgList) > 0:
             self.zoomWidget.setValue(self.zoomWidgetValue + self.imgsplider.value())
 
-    # Add chris
-    def btnstate(self, item=None):
-        """ Function to handle difficult examples
-        Update on each object """
-        if not self.canvas.editing():
-            return
-
-        item = self.currentItem()
-        if not item:  # If not selected Item, take the first one
-            item = self.labelList.item(self.labelList.count() - 1)
-
-        difficult = self.diffcButton.isChecked()
-
-        try:
-            shape = self.itemsToShapes[item]
-        except:
-            pass
-        # Checked and Update
-        try:
-            if difficult != shape.difficult:
-                shape.difficult = difficult
-                self.setDirty()
-            else:  # User probably changed item visibility
-                self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
-        except:
-            pass
-
     # React to canvas signals.
     def shapeSelectionChanged(self, selected=False):
         if self._noSelectionSlot:
@@ -1010,7 +947,8 @@ class MainWindow(QMainWindow, WindowMixin):
         shape.paintLabel = self.displayLabelOption.isChecked()
         item = HashableQListWidgetItem(shape.label)
         item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked)
+        item.setCheckState(Qt.Unchecked) if shape.difficult else item.setCheckState(Qt.Checked)
+        # Checked means difficult is False
         # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapes[item] = shape
         self.shapesToItems[shape] = item
@@ -1019,10 +957,6 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # ADD for box
         item = HashableQListWidgetItem(str([(int(p.x()), int(p.y())) for p in shape.points]))
-        # item = QListWidgetItem(str([(p.x(), p.y()) for p in shape.points]))
-        item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
-        item.setCheckState(Qt.Checked)
-        # item.setBackground(generateColorByText(shape.label))
         self.itemsToShapesbox[item] = shape
         self.shapesToItemsbox[shape] = item
         self.BoxList.addItem(item)
@@ -1089,6 +1023,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.comboBox.update_items(uniqueTextList)
 
     def saveLabels(self, annotationFilePath, mode='Auto'):
+        # Mode is Auto means that labels will be loaded from self.result_dic totally, which is the output of ocr model
         annotationFilePath = ustr(annotationFilePath)
         if self.labelFile is None:
             self.labelFile = LabelFile()
@@ -1107,17 +1042,16 @@ class MainWindow(QMainWindow, WindowMixin):
             [format_shape(shape) for shape in self.canvas.shapes]
         # Can add differrent annotation formats here
 
-        if self.model == 'paddle':
-            for box in self.result_dic:
-                trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
-                if trans_dic["label"] is "" and mode == 'Auto':
-                    continue
-                shapes.append(trans_dic)
+        for box in self.result_dic:
+            trans_dic = {"label": box[1][0], "points": box[0], 'difficult': False}
+            if trans_dic["label"] is "" and mode == 'Auto':
+                continue
+            shapes.append(trans_dic)
 
         try:
             trans_dic = []
             for box in shapes:
-                trans_dic.append({"transcription": box['label'], "points": box['points'], 'difficult': False})
+                trans_dic.append({"transcription": box['label'], "points": box['points'], 'difficult': box['difficult']})
             self.PPlabel[annotationFilePath] = trans_dic
 
             if mode == 'Auto':
@@ -1144,8 +1078,6 @@ class MainWindow(QMainWindow, WindowMixin):
             self._noSelectionSlot = True
             self.canvas.selectShape(self.itemsToShapes[item])
             shape = self.itemsToShapes[item]
-            # Add Chris
-            self.diffcButton.setChecked(shape.difficult)
 
     def boxSelectionChanged(self):
         item = self.currentBox()
@@ -1153,8 +1085,6 @@ class MainWindow(QMainWindow, WindowMixin):
             self._noSelectionSlot = True
             self.canvas.selectShape(self.itemsToShapesbox[item])
             shape = self.itemsToShapesbox[item]
-            # Add Chris
-            self.diffcButton.setChecked(shape.difficult)
 
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
@@ -1163,8 +1093,12 @@ class MainWindow(QMainWindow, WindowMixin):
             shape.label = item.text()
             # shape.line_color = generateColorByText(shape.label)
             self.setDirty()
+        elif not ((item.checkState()== Qt.Unchecked) ^ (not shape.difficult)):
+            shape.difficult = True if item.checkState() == Qt.Unchecked else False
+            self.setDirty()
         else:  # User probably changed item visibility
-            self.canvas.setShapeVisible(shape, item.checkState() == Qt.Checked)
+            self.canvas.setShapeVisible(shape, True)  # item.checkState() == Qt.Checked
+            # self.actions.save.setEnabled(True)
 
     # Callback functions:
     def newShape(self):
@@ -1183,8 +1117,6 @@ class MainWindow(QMainWindow, WindowMixin):
             text = self.labelDialog.popUp(text=self.prevLabelText)
             self.lastLabel = text
 
-        # Add Chris
-        self.diffcButton.setChecked(False)
         if text is not None:
             self.prevLabelText = self.stringBundle.getString('tempLabel')
             # generate_color = generateColorByText(text)
@@ -1281,7 +1213,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def togglePolygons(self, value):
         for item, shape in self.itemsToShapes.items():
-            item.setCheckState(Qt.Checked if value else Qt.Unchecked)
+            self.canvas.setShapeVisible(shape, value)
 
     def loadFile(self, filePath=None):
         """Load the specified file, or the last opened file if None."""
@@ -1645,6 +1577,7 @@ class MainWindow(QMainWindow, WindowMixin):
         pass
 
     def saveFile(self, _value=False, mode='Manual'):
+        # Manual mode is used for users click "Save" manually,which will change the state of the image
         if self.defaultSaveDir is not None and len(ustr(self.defaultSaveDir)):
             if self.filePath:
                 imgidx = self.getImglabelidx(self.filePath)
@@ -1933,156 +1866,49 @@ class MainWindow(QMainWindow, WindowMixin):
             QMessageBox.information(self, "Information", "Draw a box!")
 
 
-    def seclectmodel(self):
-        print('model change')
-        print(self.comboBox.currentText())
-    
-    # 模型切换功能
     def autolcm(self):
-        print('autolabelchoosemodel')
-        vbox = QVBoxLayout() # 纵向布局
-        hbox = QHBoxLayout() # 横向布局
+        vbox = QVBoxLayout()
+        hbox = QHBoxLayout()
         self.panel = QLabel()
-        self.panel.setText("自动标注配置模型")
+        self.panel.setText(self.stringBundle.getString('choseModelLg'))
         self.panel.setAlignment(Qt.AlignLeft)
         self.comboBox = QComboBox()
-        self.comboBox.setObjectName("comboBox")        
-        self.comboBox.addItems(['mobile','server','slim'])
+        self.comboBox.setObjectName("comboBox")
+        self.comboBox.addItems(['Chinese & English', 'English', 'French', 'German', 'Korean', 'Japanese'])
         vbox.addWidget(self.panel)
         vbox.addWidget(self.comboBox)
-        self.dialog=QDialog()
-        self.dialog.resize(600,200)
-        self.okBtn=QPushButton("确定")
-        self.cancelBtn=QPushButton("取消")
-        # 绑定事件
-        self.okBtn.clicked.connect(self.ok)
+        self.dialog = QDialog()
+        self.dialog.resize(300, 100)
+        self.okBtn = QPushButton(self.stringBundle.getString('ok'))
+        self.cancelBtn = QPushButton(self.stringBundle.getString('cancel'))
+
+        self.okBtn.clicked.connect(self.modelChoose)
         self.cancelBtn.clicked.connect(self.cancel)
-        self.dialog.setWindowTitle("选择模型配置文件")
-        # okBtn.move(50,50)#使用layout布局设置，因此move效果失效
-        # 确定与取消按钮横向布局
+        self.dialog.setWindowTitle(self.stringBundle.getString('choseModelLg'))
+
         hbox.addWidget(self.okBtn)
         hbox.addWidget(self.cancelBtn)
-        # 消息label与按钮组合纵向布局
+
         vbox.addWidget(self.panel)
         vbox.addLayout(hbox)
         self.dialog.setLayout(vbox)
-        self.dialog.setWindowModality(Qt.ApplicationModal)# 该模式下，只有该dialog关闭，才可以关闭父界面
+        self.dialog.setWindowModality(Qt.ApplicationModal)
         self.dialog.exec_()
+        if self.filePath:
+            self.AutoRecognition.setEnabled(True)
 
-       # 槽函数如下：
-    def ok(self):
-        det_model_dir = os.path.join(BASE_DIR, 'det')
-        rec_model_dir = os.path.join(BASE_DIR, 'rec/{}'.format('cn'))
-        cls_model_dir = os.path.join(BASE_DIR, 'cls')
+
+    def modelChoose(self):
         print(self.comboBox.currentText())
-        if self.comboBox.currentText() == "mobile":
-            model_urls = {
-                'det':
-                'https://paddleocr.bj.bcebos.com/20-09-22/mobile/det/ch_ppocr_mobile_v1.1_det_infer.tar',
-                'rec': {
-                    'ch': {
-                        'url':
-                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile/rec/ch_ppocr_mobile_v1.1_rec_infer.tar',
-                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
-                    }
-                },
-                'cls':
-                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
-            }
-        elif self.comboBox.currentText() == "server":
-            model_urls = {
-                'det':
-                'https://paddleocr.bj.bcebos.com/20-09-22/server/det/ch_ppocr_server_v1.1_det_infer.tar',
-                'rec': {
-                    'ch': {
-                        'url':
-                        'https://paddleocr.bj.bcebos.com/20-09-22/server/rec/ch_ppocr_server_v1.1_rec_infer.tar',
-                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
-                    }
-                },
-                'cls':
-                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_infer.tar'
-            }
-        else:
-            model_urls = {
-                'det':
-                'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/det/ch_ppocr_mobile_v1.1_det_prune_infer.tar',
-                'rec': {
-                    'ch': {
-                        'url':
-                        'https://paddleocr.bj.bcebos.com/20-09-22/mobile-slim/rec/ch_ppocr_mobile_v1.1_rec_quant_infer.tar',
-                        'dict_path': './ppocr/utils/ppocr_keys_v1.txt'
-                    }
-                },
-                'cls':
-                'https://paddleocr.bj.bcebos.com/20-09-22/cls/ch_ppocr_mobile_v1.1_cls_quant_infer.tar'
-            }
-        self.model_download(det_model_dir, model_urls['det'])
-        self.model_download(rec_model_dir, model_urls['rec']['ch']['url'])
-        self.model_download(cls_model_dir, model_urls['cls'])
+        lg_idx = {'Chinese & English': 'ch', 'English': 'en', 'French': 'french', 'German': 'german',
+                  'Korean': 'korean', 'Japanese': 'japan'}
+        del self.ocr
+        self.ocr = PaddleOCR(use_pdserving=False, use_angle_cls=True, det=True, cls=True, use_gpu=False,
+                             lang=lg_idx[self.comboBox.currentText()])
         self.dialog.close()
+
     def cancel(self):
-        print("取消保存！")
-        self.dialog.close() 
-
-    # 下载模型
-    def download_with_progressbar(self, url, save_path):
-        response = requests.get(url, stream=True)
-        total_size_in_bytes = int(response.headers.get('content-length', 0))
-        block_size = 1024  # 1 Kibibyte
-        progress_bar = tqdm(total=total_size_in_bytes, unit='iB', unit_scale=True)
-        with open(save_path, 'wb') as file:
-            for data in response.iter_content(block_size):
-                progress_bar.update(len(data))
-                file.write(data)
-        progress_bar.close()
-        if total_size_in_bytes != 0 and progress_bar.n != total_size_in_bytes:
-            logger.error("ERROR, something went wrong")
-            sys.exit(0)
-
-    def model_download(self, model_storage_directory, url):
-        # using custom model
-        if os.path.exists(os.path.join(
-                model_storage_directory, 'model')) or os.path.exists(
-                    os.path.join(model_storage_directory, 'params')):
-            shutil.rmtree(model_storage_directory)
-            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
-            print('download {} to {}'.format(url, tmp_path))
-            os.makedirs(model_storage_directory, exist_ok=True)
-            self.download_with_progressbar(url, tmp_path)
-            with tarfile.open(tmp_path, 'r') as tarObj:
-                for member in tarObj.getmembers():
-                    if "model" in member.name:
-                        filename = 'model'
-                    elif "params" in member.name:
-                        filename = 'params'
-                    else:
-                        continue
-                    file = tarObj.extractfile(member)
-                    with open(
-                            os.path.join(model_storage_directory, filename),
-                            'wb') as f:
-                        f.write(file.read())
-            os.remove(tmp_path)
-        else:
-            tmp_path = os.path.join(model_storage_directory, url.split('/')[-1])
-            print('download {} to {}'.format(url, tmp_path))
-            os.makedirs(model_storage_directory, exist_ok=True)
-            self.download_with_progressbar(url, tmp_path)
-            with tarfile.open(tmp_path, 'r') as tarObj:
-                for member in tarObj.getmembers():
-                    if "model" in member.name:
-                        filename = 'model'
-                    elif "params" in member.name:
-                        filename = 'params'
-                    else:
-                        continue
-                    file = tarObj.extractfile(member)
-                    with open(
-                            os.path.join(model_storage_directory, filename),
-                            'wb') as f:
-                        f.write(file.read())
-            os.remove(tmp_path)     
+        self.dialog.close()
 
     def loadFilestate(self, saveDir):
         self.fileStatepath = saveDir + '/fileState.txt'
@@ -2116,6 +1942,7 @@ class MainWindow(QMainWindow, WindowMixin):
                     file, label = each.split('\t')
                     if label:
                         label = label.replace('false', 'False')
+                        label = label.replace('true', 'True')
                         labeldict[file] = eval(label)
                     else:
                         labeldict[file] = []
@@ -2126,7 +1953,7 @@ class MainWindow(QMainWindow, WindowMixin):
         savedfile = [self.getImglabelidx(i) for i in self.fileStatedict.keys()]
         with open(self.PPlabelpath, 'w', encoding='utf-8') as f:
             for key in self.PPlabel:
-                if key in savedfile:
+                if key in savedfile and self.PPlabel[key] != []:
                     f.write(key + '\t')
                     f.write(json.dumps(self.PPlabel[key], ensure_ascii=False) + '\n')
 
@@ -2154,6 +1981,7 @@ class MainWindow(QMainWindow, WindowMixin):
             for key in self.fileStatedict:
                 idx = self.getImglabelidx(key)
                 for i, label in enumerate(self.PPlabel[idx]):
+                    if label['difficult']: continue
                     img = cv2.imread(key)
                     img_crop = get_rotate_crop_image(img, np.array(label['points'], np.float32))
                     img_name = os.path.splitext(os.path.basename(idx))[0] + '_crop_'+str(i)+'.jpg'
@@ -2185,18 +2013,14 @@ def get_main_app(argv=[]):
     app.setWindowIcon(newIcon("app"))
     # Tzutalin 201705+: Accept extra agruments to change predefined class file
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("image_dir", nargs="?")
-    argparser.add_argument("language", default='zh-CN',nargs="?")
-    argparser.add_argument("predefined_classes_file",
+    argparser.add_argument("--lang", default='ch', nargs="?")
+    argparser.add_argument("--predefined_classes_file",
                            default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"),
                            nargs="?")
-    argparser.add_argument("save_dir", nargs="?")
     args = argparser.parse_args(argv[1:])
     # Usage : labelImg.py image predefClassFile saveDir
-    win = MainWindow(args.image_dir,
-                     args.predefined_classes_file,
-                     args.save_dir,
-                     args.language)
+    win = MainWindow(lang=args.lang,
+                     defaultPrefdefClassFile=args.predefined_classes_file)
     win.show()
     return app, win
 
