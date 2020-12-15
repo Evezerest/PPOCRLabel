@@ -51,6 +51,7 @@ except ImportError:
     from PyQt4.QtCore import *
 
 from combobox import ComboBox
+from editinlist import EditInList
 from libs.constants import *
 from libs.utils import *
 from libs.settings import Settings
@@ -202,12 +203,12 @@ class MainWindow(QMainWindow, WindowMixin):
 
         ################## label list ####################
         # Create and add a widget for showing current label items
-        self.labelList = QListWidget()
+        self.labelList = EditInList()
         labelListContainer = QWidget()
         labelListContainer.setLayout(listLayout)
         self.labelList.itemActivated.connect(self.labelSelectionChanged)
         self.labelList.itemSelectionChanged.connect(self.labelSelectionChanged)
-        self.labelList.itemDoubleClicked.connect(self.editLabel)
+        self.labelList.clicked.connect(self.labelList.item_clicked)
         # Connect to itemChanged to detect checkbox changes.
         self.labelList.itemChanged.connect(self.labelItemChanged)
         self.labelListDock = QDockWidget(getStr('recognitionResult'),self)
@@ -378,6 +379,9 @@ class MainWindow(QMainWindow, WindowMixin):
 
         save = action(getStr('save'), self.saveFile,
                       'Ctrl+S', 'save', getStr('saveDetail'), enabled=False)
+        
+        topSpeed = action(getStr('topSpeedModel'), partial(self.speedChoose, True),
+                                        'Ctrl+T', 'next', getStr('topSpeedModelDetail'))
 
         alcm = action(getStr('choosemodel'), self.autolcm,
                                         'Ctrl+M', 'next', getStr('tipchoosemodel'))
@@ -528,7 +532,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               fitWindow=fitWindow, fitWidth=fitWidth,
                               zoomActions=zoomActions,
                               fileMenuActions=(
-                                  open, opendir, save,  resetAll, quit),
+                                  open, opendir, topSpeed, save,  resetAll, quit),
                               beginner=(), advanced=(),
                               editMenu=(createpoly, edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
@@ -564,7 +568,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (opendir, None, save,  resetAll, deleteImg, quit))
+                   (opendir, topSpeed, None, save,  resetAll, deleteImg, quit))
 
         addActions(self.menus.help, (showSteps, showInfo))
         addActions(self.menus.view, (
@@ -1101,21 +1105,21 @@ class MainWindow(QMainWindow, WindowMixin):
             # self.actions.save.setEnabled(True)
 
     # Callback functions:
-    def newShape(self):
+    def newShape(self, value=True):
         """Pop-up and give focus to the label editor.
 
         position MUST be in global coordinates.
         """
+
         if len(self.labelHist) > 0:
             self.labelDialog = LabelDialog(
                 parent=self, listItem=self.labelHist)
-
-        # Sync single class mode from PR#106
-        if self.singleClassMode.isChecked() and self.lastLabel:
-            text = self.lastLabel
-        else:
+        
+        if value:
             text = self.labelDialog.popUp(text=self.prevLabelText)
             self.lastLabel = text
+        else:
+            text = self.prevLabelText
 
         if text is not None:
             self.prevLabelText = self.stringBundle.getString('tempLabel')
@@ -1990,6 +1994,12 @@ class MainWindow(QMainWindow, WindowMixin):
                     f.write(label['transcription'] + '\n')
 
         QMessageBox.information(self, "Information", "Cropped images has been saved in "+str(crop_img_dir))
+    
+    def speedChoose(self, value):
+        if value:
+            self.canvas.newShape.disconnect(self.newShape)
+            self.canvas.newShape.connect(partial(self.newShape, False))
+
 
 def inverted(color):
     return QColor(*[255 - v for v in color.getRgb()])
