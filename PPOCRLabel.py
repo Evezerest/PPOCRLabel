@@ -467,6 +467,8 @@ class MainWindow(QMainWindow, WindowMixin):
         saveRec = action(getStr('saveRec'), self.saveRecResult,
                             '', 'saveRec', getStr('saveRec'), enabled=False)
 
+        singleRere = action('single Re', self.singleRerecognition, '', 'new', 'single Re', enabled=False)
+
         self.editButton.setDefaultAction(edit)
         self.newButton.setDefaultAction(create)
         self.DelButton.setDefaultAction(deleteImg)
@@ -524,7 +526,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
         # Store actions for further handling.
         self.actions = struct(save=save,  open=open,  resetAll=resetAll, deleteImg=deleteImg,
-                              lineColor=color1, create=create, delete=delete, edit=edit, copy=copy,
+                              lineColor=color1, create=create, delete=delete, edit=edit, copy=copy, singleRere=singleRere,
                               saveRec=saveRec,
                               createMode=createMode, editMode=editMode,
                               shapeLineColor=shapeLineColor, shapeFillColor=shapeFillColor,
@@ -536,7 +538,7 @@ class MainWindow(QMainWindow, WindowMixin):
                               beginner=(), advanced=(),
                               editMenu=(createpoly, edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
-                              beginnerContext=(create, edit, copy, delete),
+                              beginnerContext=(create, edit, copy, delete, singleRere),
                               advancedContext=(createMode, editMode, edit, copy,
                                                delete, shapeLineColor, shapeFillColor),
                               onLoadActive=(
@@ -591,7 +593,7 @@ class MainWindow(QMainWindow, WindowMixin):
         # self.tools = self.toolbar('Tools')
 
         self.actions.beginner = (
-            open, opendir, openNextImg, openPrevImg, verify, save, None, create, copy, delete, None,
+            open, opendir, openNextImg, openPrevImg, verify, save, None, create, copy, delete, singleRere, None,
             zoomIn, zoom, zoomOut, fitWindow, fitWidth)
 
         self.actions.advanced = (
@@ -942,6 +944,7 @@ class MainWindow(QMainWindow, WindowMixin):
             else:
                 self.labelList.clearSelection()
         self.actions.delete.setEnabled(selected)
+        self.actions.singleRere.setEnabled(selected)
         self.actions.copy.setEnabled(selected)
         self.actions.edit.setEnabled(selected)
         self.actions.shapeLineColor.setEnabled(selected)
@@ -983,6 +986,19 @@ class MainWindow(QMainWindow, WindowMixin):
         self.BoxList.takeItem(self.BoxList.row(item))
         del self.shapesToItemsbox[shape]
         del self.itemsToShapesbox[item]
+        self.updateComboBox()
+
+    def singleLabel(self, shape):
+        if shape is None:
+            # print('rm empty label')
+            return
+        item = self.shapesToItems[shape]
+        item.setText(shape.label)
+        self.updateComboBox()
+
+        # ADD:
+        item = self.shapesToItemsbox[shape]
+        item.setText(str([(int(p.x()), int(p.y())) for p in shape.points]))
         self.updateComboBox()
 
     def loadLabels(self, shapes):
@@ -1834,6 +1850,27 @@ class MainWindow(QMainWindow, WindowMixin):
         self.saveCacheLabel()
 
 
+    def singleRerecognition(self):
+        img = cv2.imread(self.filePath)
+        shape = self.canvas.selectedShape
+        box = [[int(p.x()), int(p.y())] for p in shape.points]
+        assert len(box) == 4
+        img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+        if img_crop is None:
+            msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
+            QMessageBox.information(self, "Information", msg)
+            return
+        result = self.ocr.ocr(img_crop, cls=True, det=False)
+        if result[0][0] is not '':
+            result.insert(0, box)
+            print('result in reRec is ', result)
+            if result[1][0] == shape.label:
+                print('label no change')
+            else:
+                shape.label = result[1][0]
+            self.singleLabel(shape)
+        print(box)
+        
     def reRecognition(self):
         img = cv2.imread(self.filePath)
         # org_box = [dic['points'] for dic in self.PPlabel[self.getImglabelidx(self.filePath)]]
