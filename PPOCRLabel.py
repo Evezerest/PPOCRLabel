@@ -383,6 +383,9 @@ class MainWindow(QMainWindow, WindowMixin):
         topSpeed = action(getStr('topSpeedModel'), partial(self.speedChoose, True),
                                         'Ctrl+T', 'next', getStr('topSpeedModelDetail'))
 
+        baseSpeed = action(getStr('baseSpeedModel'), partial(self.speedChoose, False),
+                                        'Ctrl+B', 'next', getStr('baseSpeedModelDetail'), enabled=False)
+
         alcm = action(getStr('choosemodel'), self.autolcm,
                                         'Ctrl+M', 'next', getStr('tipchoosemodel'))
 
@@ -531,8 +534,10 @@ class MainWindow(QMainWindow, WindowMixin):
                               zoom=zoom, zoomIn=zoomIn, zoomOut=zoomOut, zoomOrg=zoomOrg,
                               fitWindow=fitWindow, fitWidth=fitWidth,
                               zoomActions=zoomActions,
+                              topSpeed=topSpeed,
+                              baseSpeed=baseSpeed,
                               fileMenuActions=(
-                                  open, opendir, topSpeed, save,  resetAll, quit),
+                                  open, opendir, topSpeed, baseSpeed, save,  resetAll, quit),
                               beginner=(), advanced=(),
                               editMenu=(createpoly, edit, copy, delete,
                                         None, color1, self.drawSquaresOption),
@@ -568,7 +573,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.displayLabelOption.triggered.connect(self.togglePaintLabelsOption)
 
         addActions(self.menus.file,
-                   (opendir, topSpeed, None, save,  resetAll, deleteImg, quit))
+                   (opendir, topSpeed, baseSpeed, None, save,  resetAll, deleteImg, quit))
 
         addActions(self.menus.help, (showSteps, showInfo))
         addActions(self.menus.view, (
@@ -1997,8 +2002,15 @@ class MainWindow(QMainWindow, WindowMixin):
     
     def speedChoose(self, value):
         if value:
-            self.canvas.newShape.disconnect(self.newShape)
+            self.canvas.newShape.disconnect()
             self.canvas.newShape.connect(partial(self.newShape, False))
+            self.actions.topSpeed.setEnabled(False)
+            self.actions.baseSpeed.setEnabled(True)
+        else:
+            self.canvas.newShape.disconnect()
+            self.canvas.newShape.connect(partial(self.newShape, True))
+            self.actions.baseSpeed.setEnabled(False)
+            self.actions.topSpeed.setEnabled(True)
 
 
 def inverted(color):

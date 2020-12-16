@@ -7,12 +7,12 @@ from PyQt5.QtWidgets import *
 class EditInList(QListWidget):
     def __init__(self):
         super(EditInList,self).__init__()
-        # doubleclick to edit
-        self.edited_item = self.currentItem()
-        self.close_flag = True
+        # click to edit
         self.clicked.connect(self.item_clicked)  
 
     def item_clicked(self, modelindex: QModelIndex) -> None:
+        self.edited_item = self.currentItem()
+        self.closePersistentEditor(self.edited_item)
         item = self.item(modelindex.row())
         self.edited_item = item
         self.openPersistentEditor(item)
