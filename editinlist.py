@@ -16,7 +16,7 @@ class EditInList(QListWidget):
 
     def leaveEvent(self, event):
         # close edit  
-        self.closePersistentEditor(self.currentItem())    
+        self.closePersistentEditor(self.items())    
         
     def item_clicked(self, modelindex: QModelIndex) -> None:
         self.edited_item = self.currentItem()
