@@ -10,13 +10,16 @@ class EditInList(QListWidget):
         # click to edit
         self.clicked.connect(self.item_clicked)
 
+
     def mouseDoubleClickEvent(self, event):
         # close edit
-        self.closePersistentEditor(self.currentItem())
+        for i in range(self.count()):
+            self.closePersistentEditor(self.item(i))  
 
     def leaveEvent(self, event):
         # close edit  
-        self.closePersistentEditor(self.currentItem())    
+        for i in range(self.count()):
+            self.closePersistentEditor(self.item(i))     
         
     def item_clicked(self, modelindex: QModelIndex) -> None:
         self.edited_item = self.currentItem()
