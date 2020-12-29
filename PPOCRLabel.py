@@ -204,7 +204,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.labelList = QListWidget()
         labelListContainer = QWidget()
         labelListContainer.setLayout(listLayout)
-        # self.labelList.itemActivated.connect(self.labelSelectionChanged)
+        self.labelList.itemActivated.connect(self.labelSelectionChanged)
         self.labelList.itemSelectionChanged.connect(self.labelSelectionChanged)
         self.labelList.itemDoubleClicked.connect(self.editLabel)
         # Connect to itemChanged to detect checkbox changes.
@@ -866,18 +866,11 @@ class MainWindow(QMainWindow, WindowMixin):
             self.setDirty()
             self.updateComboBox()
 
-    # def updateBoxlist(self):
-    #     shape = self.canvas.selectedShape
-    #     item = self.shapesToItemsbox[shape]  # listitem
-    #     text = [(int(p.x()), int(p.y())) for p in shape.points]
-    #     item.setText(str(text))
-    #     self.setDirty()
-
     def updateBoxlist(self):
-        for shape in self.canvas.selectedShapes:
-            item = self.shapesToItemsbox[shape]  # listitem
-            text = [(int(p.x()), int(p.y())) for p in shape.points]
-            item.setText(str(text))
+        shape = self.canvas.selectedShape
+        item = self.shapesToItemsbox[shape]  # listitem
+        text = [(int(p.x()), int(p.y())) for p in shape.points]
+        item.setText(str(text))
         self.setDirty()
 
     def indexTo5Files(self, currIndex):
@@ -910,60 +903,23 @@ class MainWindow(QMainWindow, WindowMixin):
         if len(self.mImgList) > 0:
             self.zoomWidget.setValue(self.zoomWidgetValue + self.imgsplider.value())
 
-    # # TODO: UPDATE THIS FUNCTION
-    # # React to canvas signals.
-    # def shapeSelectionChanged(self, selected=False):
-    #     if self._noSelectionSlot:
-    #         self._noSelectionSlot = False
-    #     else:
-    #         shape = self.canvas.selectedShape
-    #         if shape:
-    #             self.shapesToItems[shape].setSelected(True)
-    #             self.shapesToItemsbox[shape].setSelected(True)  # ADD
-    #         else:
-    #             self.labelList.clearSelection()
-    #     self.actions.delete.setEnabled(selected)
-    #     self.actions.copy.setEnabled(selected)
-    #     self.actions.edit.setEnabled(selected)
-    #     self.actions.shapeLineColor.setEnabled(selected)
-    #     self.actions.shapeFillColor.setEnabled(selected)
-    #     self.actions.singleRere.setEnabled(selected)
-
-    # def shapeSelectionChanged(self, selected_shapes):
-    #     if self._noSelectionSlot:
-    #         self._noSelectionSlot = False
-    #     else:
-    #         if self.canvas.selectedShapes:
-    #             for shape in self.canvas.selectedShapes:
-    #                 self.shapesToItems[shape].setSelected(True)
-    #                 self.shapesToItemsbox[shape].setSelected(True)
-    #         else:
-    #             self.labelList.clearSelection()
-    #
-    #     n_selected = len(selected_shapes)
-    #     self.actions.delete.setEnabled(n_selected)
-    #     self.actions.copy.setEnabled(n_selected)
-    #     self.actions.edit.setEnabled(n_selected == 1)
-
-    def shapeSelectionChanged(self, selected_shapes):
-        self._noSelectionSlot = True
-        for shape in self.canvas.selectedShapes:
-            shape.selected = False
-        self.labelList.clearSelection()
-        self.canvas.selectedShapes = selected_shapes
-        for shape in self.canvas.selectedShapes:
-            # shape.selected = True
-            # item = self.labelList.findItemByShape(shape)
-            # self.labelList.selectItem(item)
-            # self.labelList.scrollToItem(item)
-            self.shapesToItems[shape].setSelected(True)
-            self.shapesToItemsbox[shape].setSelected(True)  # ADD 是否可以代替selectItem？
-
-        self._noSelectionSlot = False
-        n_selected = len(selected_shapes)
-        self.actions.delete.setEnabled(n_selected)
-        self.actions.copy.setEnabled(n_selected)
-        self.actions.edit.setEnabled(n_selected == 1)
+    # React to canvas signals.
+    def shapeSelectionChanged(self, selected=False):
+        if self._noSelectionSlot:
+            self._noSelectionSlot = False
+        else:
+            shape = self.canvas.selectedShape
+            if shape:
+                self.shapesToItems[shape].setSelected(True)
+                self.shapesToItemsbox[shape].setSelected(True)  # ADD
+            else:
+                self.labelList.clearSelection()
+        self.actions.delete.setEnabled(selected)
+        self.actions.copy.setEnabled(selected)
+        self.actions.edit.setEnabled(selected)
+        self.actions.shapeLineColor.setEnabled(selected)
+        self.actions.shapeFillColor.setEnabled(selected)
+        self.actions.singleRere.setEnabled(selected)
 
     def addLabel(self, shape):
         shape.paintLabel = self.displayLabelOption.isChecked()
@@ -1104,43 +1060,19 @@ class MainWindow(QMainWindow, WindowMixin):
         self.shapeSelectionChanged(True)
 
 
-    # def labelSelectionChanged(self):
-    #     item = self.currentItem()
-    #     if item and self.canvas.editing():
-    #         self._noSelectionSlot = True
-    #         self.canvas.selectShape(self.itemsToShapes[item])
-    #         shape = self.itemsToShapes[item]
-
     def labelSelectionChanged(self):
-        if self._noSelectionSlot:
-            return
-        if self.canvas.editing():
-            selected_shapes = []
-            for item in self.labelList.selectedItems():
-                selected_shapes.append(self.itemsToShapes[item])
-            if selected_shapes:
-                self.canvas.selectShapes(selected_shapes)
-            else:
-                self.canvas.deSelectShape()
-
-    # def boxSelectionChanged(self):
-    #     item = self.currentBox()
-    #     if item and self.canvas.editing():
-    #         self._noSelectionSlot = True
-    #         self.canvas.selectShape(self.itemsToShapesbox[item])
-    #         shape = self.itemsToShapesbox[item]
+        item = self.currentItem()
+        if item and self.canvas.editing():
+            self._noSelectionSlot = True
+            self.canvas.selectShape(self.itemsToShapes[item])
+            shape = self.itemsToShapes[item]
 
     def boxSelectionChanged(self):
-        if self._noSelectionSlot:
-            return
-        if self.canvas.editing():
-            selected_shapes = []
-            for item in self.labelList.selectedItems():
-                selected_shapes.append(self.itemsToShapesbox[item])
-            if selected_shapes:
-                self.canvas.selectShapes(selected_shapes)
-            else:
-                self.canvas.deSelectShape()
+        item = self.currentBox()
+        if item and self.canvas.editing():
+            self._noSelectionSlot = True
+            self.canvas.selectShape(self.itemsToShapesbox[item])
+            shape = self.itemsToShapesbox[item]
 
     def labelItemChanged(self, item):
         shape = self.itemsToShapes[item]
@@ -2053,7 +1985,7 @@ def get_main_app(argv=[]):
     app.setWindowIcon(newIcon("app"))
     # Tzutalin 201705+: Accept extra agruments to change predefined class file
     argparser = argparse.ArgumentParser()
-    argparser.add_argument("--lang", default='ch', nargs="?")
+    argparser.add_argument("--lang", default='en', nargs="?")
     argparser.add_argument("--predefined_classes_file",
                            default=os.path.join(os.path.dirname(__file__), "data", "predefined_classes.txt"),
                            nargs="?")
