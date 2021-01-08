@@ -10,7 +10,6 @@ class EditInList(QListWidget):
         # click to edit
         self.clicked.connect(self.item_clicked)
 
-
     def mouseDoubleClickEvent(self, event):
         # close edit
         for i in range(self.count()):

@@ -1099,6 +1099,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def labelSelectionChanged(self):
         item = self.currentItem()
+        self.labelList.scrollToItem(item, QAbstractItemView.PositionAtCenter)
         if item and self.canvas.editing():
             self._noSelectionSlot = True
             self.canvas.selectShape(self.itemsToShapes[item])
@@ -1106,6 +1107,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def boxSelectionChanged(self):
         item = self.currentBox()
+        self.BoxList.scrollToItem(item, QAbstractItemView.PositionAtCenter)
         if item and self.canvas.editing():
             self._noSelectionSlot = True
             self.canvas.selectShape(self.itemsToShapesbox[item])
