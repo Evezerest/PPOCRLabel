@@ -1083,7 +1083,7 @@ class MainWindow(QMainWindow, WindowMixin):
 
     def labelSelectionChanged(self):
         item = self.currentItem()
-        self.labelList.scrollToItem(item, QAbstractItemView.PositionAtCenter)
+        self.labelList.scrollToItem(item, QAbstractItemView.EnsureVisible)
         if item and self.canvas.editing():
             self._noSelectionSlot = True
             self.canvas.selectShape(self.itemsToShapes[item])
