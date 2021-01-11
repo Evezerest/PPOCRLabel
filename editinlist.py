@@ -1,4 +1,5 @@
 import sys
+import time
 from PyQt5 import QtWidgets
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
@@ -24,6 +25,7 @@ class EditInList(QListWidget):
         self.edited_item = self.currentItem()
         self.closePersistentEditor(self.edited_item)
         item = self.item(modelindex.row())
+        time.sleep(0.2)
         self.edited_item = item
         self.openPersistentEditor(item)
         self.editItem(item)
