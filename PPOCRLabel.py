@@ -24,6 +24,7 @@ import sys
 from functools import partial
 from collections import defaultdict
 import json
+import cv2
 
 
 __dir__ = os.path.dirname(os.path.abspath(__file__))
@@ -1311,10 +1312,15 @@ class MainWindow(QMainWindow, WindowMixin):
         #     if unicodeFilePath in self.mImgList:
                 
         if unicodeFilePath and os.path.exists(unicodeFilePath):
-            self.imageData = read(unicodeFilePath, None)
+            #h self.imageData = read(unicodeFilePath, None)
             self.canvas.verified = False
 
-            image = QImage.fromData(self.imageData)
+            #h image = QImage.fromData(self.imageData)
+            cvimg = cv2.imread(unicodeFilePath)
+            height, width, depth = cvimg.shape
+            cvimg = cv2.cvtColor(cvimg, cv2.COLOR_BGR2RGB)
+            image = QImage(cvimg.data, width, height, width * depth, QImage.Format_RGB888)
+            
             if image.isNull():
                 self.errorMessage(u'Error opening file',
                                   u"<p>Make sure <i>%s</i> is a valid image file." % unicodeFilePath)
