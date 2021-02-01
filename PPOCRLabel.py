@@ -873,7 +873,9 @@ class MainWindow(QMainWindow, WindowMixin):
     #     self.setDirty()
 
     def updateBoxlist(self):
-        for shape in self.canvas.selectedShapes:
+        #changedShape = self.canvas.selectedShapes
+        #changedShape.append(self.canvas.hShape) #changedShape: #
+        for shape in self.canvas.selectedShapes+[self.canvas.hShape]:
             item = self.shapesToItemsbox[shape]  # listitem
             text = [(int(p.x()), int(p.y())) for p in shape.points]
             item.setText(str(text))
