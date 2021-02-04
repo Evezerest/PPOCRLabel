@@ -143,7 +143,6 @@ class Canvas(QWidget):
                 currentHeight = abs(self.current[0].y() - pos.y())
                 self.parent().window().labelCoordinates.setText(
                         'Width: %d, Height: %d / X: %d; Y: %d' % (currentWidth, currentHeight, pos.x(), pos.y()))
-
                 color = self.drawingLineColor
                 if self.outOfPixmap(pos):
                     # Don't allow the user to draw outside the pixmap.
@@ -539,20 +538,22 @@ class Canvas(QWidget):
         else:
             shiftPos = pos - point
 
-        shape.moveVertexBy(index, shiftPos)
-
-        lindex = (index + 1) % 4
-        rindex = (index + 3) % 4
-        lshift = None
-        rshift = None
-        if index % 2 == 0:
-            rshift = QPointF(shiftPos.x(), 0)
-            lshift = QPointF(0, shiftPos.y())
+        if shape[0].x()==shape[3].x() and shape[1].x()==shape[2].x() and shape[0].y()==shape[1].y():
+            shape.moveVertexBy(index, shiftPos)
+            lindex = (index + 1) % 4
+            rindex = (index + 3) % 4
+            lshift = None
+            rshift = None
+            if index % 2 == 0:
+                rshift = QPointF(shiftPos.x(), 0)
+                lshift = QPointF(0, shiftPos.y())
+            else:
+                lshift = QPointF(shiftPos.x(), 0)
+                rshift = QPointF(0, shiftPos.y())
+            shape.moveVertexBy(rindex, rshift)
+            shape.moveVertexBy(lindex, lshift)
         else:
-            lshift = QPointF(shiftPos.x(), 0)
-            rshift = QPointF(0, shiftPos.y())
-        shape.moveVertexBy(rindex, rshift)
-        shape.moveVertexBy(lindex, lshift)
+            shape.moveVertexBy(index, shiftPos)
 
     def boundedMoveShape(self, shapes, pos):
         if self.outOfPixmap(pos):
