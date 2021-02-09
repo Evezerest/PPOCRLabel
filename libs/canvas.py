@@ -263,8 +263,8 @@ class Canvas(QWidget):
                         # print('Adding points in mousePressEvent is ', self.line[1])
                         self.current.addPoint(self.line[1])
                         self.line[0] = self.current[-1]
-                        if self.current.isClosed():
-                            # print('1111')
+                        if self.current.isClosed() and len(self.current.points) > 3:
+                            # print(len(self.current))
                             self.finalise()
                     elif self.drawSquare: # 增加
                         assert len(self.current.points) == 1
@@ -393,7 +393,7 @@ class Canvas(QWidget):
     def mouseDoubleClickEvent(self, ev):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
-        if self.canCloseShape() and len(self.current) > 3:
+        if self.canCloseShape() and len(self.current) == 4:
             if not self.fourpoint:
                 self.current.popPoint()
             self.finalise()
