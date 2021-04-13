@@ -147,6 +147,7 @@ class MainWindow(QMainWindow, WindowMixin):
         self.itemsToShapesbox = {}
         self.shapesToItemsbox = {}
         self.prevLabelText = getStr('tempLabel')
+        self.noLabelText = getStr('nullLabel')
         self.model = 'paddle'
         self.PPreader = None
         self.autoSaveNum = 5
@@ -1806,6 +1807,15 @@ class MainWindow(QMainWindow, WindowMixin):
                         print('label no change')
                     else:
                         rec_flag += 1
+                else:
+                    temp = [self.noLabelText, 0]
+                    temp.insert(0, box)
+                    print('Can not recognise the box')
+                    self.result_dic.append(temp)
+                    if temp[1][0] == shape.label:
+                        print('label no change')
+                    else:
+                        rec_flag += 1
 
             if len(self.result_dic) > 0 and rec_flag > 0:
                 self.saveFile(mode='Auto')
@@ -1838,6 +1848,14 @@ class MainWindow(QMainWindow, WindowMixin):
                     shape.label = result[1][0]
                 self.singleLabel(shape)
                 self.setDirty()
+            else:
+                temp = [self.noLabelText, 0]
+                temp.insert(0, box)
+                print('Can not recognise the box')
+                if temp[1][0] == shape.label:
+                    print('label no change')
+                else:
+                    shape.label = temp[1][0]
             print(box)
 
     def autolcm(self):
