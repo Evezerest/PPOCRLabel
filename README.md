@@ -8,12 +8,15 @@ PPOCRLabel is a semi-automatic graphic annotation tool suitable for OCR field, w
 
 ### Recent Update
 
+- 2021.8.11：
+  - New functions: Open the dataset folder, image rotation (Note: Please delete the label box before rotating the image) (by [Wei-JL](https://github.com/Wei-JL))
+  - Added shortcut key description (Help-Shortcut Key), repaired the direction shortcut key movement function under batch processing (by [d2623587501](https://github.com/d2623587501))
 - 2021.2.5: New batch processing and undo functions (by [Evezerest](https://github.com/Evezerest)):
-  - Batch processing function: Press and hold the Ctrl key to select the box, you can move, copy, and delete in batches.
-  - Undo function: In the process of drawing a four-point label box or after editing the box, press Ctrl+Z to undo the previous operation.
+  - **Batch processing function**: Press and hold the Ctrl key to select the box, you can move, copy, and delete in batches.
+  - **Undo function**: In the process of drawing a four-point label box or after editing the box, press Ctrl+Z to undo the previous operation.
   - Fix image rotation and size problems, optimize the process of editing the mark frame (by [ninetailskim](https://github.com/ninetailskim)、 [edencfc](https://github.com/edencfc)).
 - 2021.1.11: Optimize the labeling experience (by [edencfc](https://github.com/edencfc)),
-  - Users can choose whether to pop up the label input dialog after drawing the detection box in "View - Pop-up Label Input Dialog". 
+  - Users can choose whether to pop up the label input dialog after drawing the detection box in "View - Pop-up Label Input Dialog".
   - The recognition result scrolls synchronously when users click related detection box.
   - Click to modify the recognition result.(If you can't change the result, please switch to the system default input method, or switch back to the original input method again)
 - 2020.12.18: Support re-recognition of a single label box (by [ninetailskim](https://github.com/ninetailskim) ), perfect shortcut keys.
@@ -23,17 +26,51 @@ PPOCRLabel is a semi-automatic graphic annotation tool suitable for OCR field, w
 
 ## Installation
 
-### 1. Install PaddleOCR
+### 1. Environment Preparation
 
-PaddleOCR models has been built in PPOCRLabel, please refer to [PaddleOCR installation document](https://github.com/PaddlePaddle/PaddleOCR/blob/develop/doc/doc_ch/installation.md) to prepare PaddleOCR and make sure it works.
+#### **Install PaddlePaddle 2.0**
+
+```bash
+pip3 install --upgrade pip
+
+# If you have cuda9 or cuda10 installed on your machine, please run the following command to install
+python3 -m pip install paddlepaddle-gpu==2.0.0 -i https://mirror.baidu.com/pypi/simple
+
+# If you only have cpu on your machine, please run the following command to install
+python3 -m pip install paddlepaddle==2.0.0 -i https://mirror.baidu.com/pypi/simple
+```
+
+For more software version requirements, please refer to the instructions in [Installation Document](https://www.paddlepaddle.org.cn/install/quick) for operation.
+
+#### **Install PaddleOCR**
+
+```bash
+# Recommend
+git clone https://github.com/PaddlePaddle/PaddleOCR
+
+# If you cannot pull successfully due to network problems, you can also choose to use the code hosting on the cloud:
+
+git clone https://gitee.com/paddlepaddle/PaddleOCR
+
+# Note: The cloud-hosting code may not be able to synchronize the update with this GitHub project in real time. There might be a delay of 3-5 days. Please give priority to the recommended method.
+```
+
+#### **Install Third-party Libraries**
+
+```bash
+cd PaddleOCR
+pip3 install -r requirements.txt
+```
+
+If you getting this error `OSError: [WinError 126] The specified module could not be found` when you install shapely on windows. Please try to download Shapely whl file using http://www.lfd.uci.edu/~gohlke/pythonlibs/#shapely.
+
+Reference: [Solve shapely installation on windows](https://stackoverflow.com/questions/44398265/install-shapely-oserror-winerror-126-the-specified-module-could-not-be-found)
 
 ### 2. Install PPOCRLabel
 
-#### Windows + Anaconda
+#### Windows
 
-Download and install [Anaconda](https://www.anaconda.com/download/#download) (Python 3+)
-
-```
+```bash
 pip install pyqt5
 cd ./PPOCRLabel # Change the directory to the PPOCRLabel folder
 python PPOCRLabel.py
@@ -41,18 +78,18 @@ python PPOCRLabel.py
 
 #### Ubuntu Linux
 
-```
+```bash
 pip3 install pyqt5
 pip3 install trash-cli
 cd ./PPOCRLabel # Change the directory to the PPOCRLabel folder
 python3 PPOCRLabel.py
 ```
 
-#### macOS
-```
+#### MacOS
+```bash
 pip3 install pyqt5
 pip3 uninstall opencv-python # Uninstall opencv manually as it conflicts with pyqt
-pip3 install opencv-contrib-python-headless # Install the headless version of opencv
+pip3 install opencv-contrib-python-headless==4.2.0.32 # Install the headless version of opencv
 cd ./PPOCRLabel # Change the directory to the PPOCRLabel folder
 python3 PPOCRLabel.py
 ```
@@ -79,11 +116,11 @@ python3 PPOCRLabel.py
 
 7. Double click the result in 'recognition result' list to manually change inaccurate recognition results.
 
-8. Click "Check", the image status will switch to "√",then the program automatically jump to the next.
+8. **Click "Check", the image status will switch to "√",then the program automatically jump to the next.**
 
 9. Click "Delete Image" and the image will be deleted to the recycle bin.
 
-10. Labeling result: the user can save manually through the menu "File - Save Label", while the program will also save automatically if "File - Auto Save Label Mode" is selected. The manually checked label will be stored in *Label.txt* under the opened picture folder. Click "PaddleOCR"-"Save Recognition Results" in the menu bar, the recognition training data of such pictures will be saved in the *crop_img* folder, and the recognition label will be saved in *rec_gt.txt*<sup>[4]</sup>.
+10. Labeling result: the user can export the label result manually through the menu "File - Export Label", while the program will also export automatically if "File - Auto export Label Mode" is selected. The manually checked label will be stored in *Label.txt* under the opened picture folder. Click "File"-"Export Recognition Results" in the menu bar, the recognition training data of such pictures will be saved in the *crop_img* folder, and the recognition label will be saved in *rec_gt.txt*<sup>[4]</sup>.
 
 ### Note
 
@@ -97,10 +134,10 @@ python3 PPOCRLabel.py
 
 |   File name   |                         Description                          |
 | :-----------: | :----------------------------------------------------------: |
-|   Label.txt   | The detection label file can be directly used for PPOCR detection model training. After the user saves 5 label results, the file will be automatically saved. It will also be written when the user closes the application or changes the file folder. |
+|   Label.txt   | The detection label file can be directly used for PPOCR detection model training. After the user saves 5 label results, the file will be automatically exported. It will also be written when the user closes the application or changes the file folder. |
 | fileState.txt | The picture status file save the image in the current folder that has been manually confirmed by the user. |
 |  Cache.cach   |    Cache files to save the results of model recognition.     |
-|  rec_gt.txt   | The recognition label file, which can be directly used for PPOCR identification model training, is generated after the user clicks on the menu bar "File"-"Save recognition result". |
+|  rec_gt.txt   | The recognition label file, which can be directly used for PPOCR identification model training, is generated after the user clicks on the menu bar "File"-"Export recognition result". |
 |   crop_img    | The recognition data, generated at the same time with *rec_gt.txt* |
 
 ## Explanation
@@ -109,7 +146,6 @@ python3 PPOCRLabel.py
 
 | Shortcut keys            | Description                                      |
 | ------------------------ | ------------------------------------------------ |
-| Ctrl + Shift + A         | Automatically label all unchecked images         |
 | Ctrl + Shift + R         | Re-recognize all the labels of the current image |
 | W                        | Create a rect box                                |
 | Q                        | Create a four-points box                         |
@@ -130,21 +166,21 @@ python3 PPOCRLabel.py
 
 - Default model: PPOCRLabel uses the Chinese and English ultra-lightweight OCR model in PaddleOCR by default, supports Chinese, English and number recognition, and multiple language detection.
 
-- Model language switching: Changing the built-in model language is supportable by clicking "PaddleOCR"-"Choose OCR Model" in the menu bar. Currently supported languages​include French, German, Korean, and Japanese. 
+- Model language switching: Changing the built-in model language is supportable by clicking "PaddleOCR"-"Choose OCR Model" in the menu bar. Currently supported languages​include French, German, Korean, and Japanese.
   For specific model download links, please refer to [PaddleOCR Model List](https://github.com/PaddlePaddle/PaddleOCR/blob/develop/doc/doc_en/models_list_en.md#multilingual-recognition-modelupdating)
 
 - Custom model: The model trained by users can be replaced by modifying PPOCRLabel.py in [PaddleOCR class instantiation](https://github.com/PaddlePaddle/PaddleOCR/blob/develop/PPOCRLabel/PPOCRLabel.py#L110) referring [Custom Model Code](https://github.com/PaddlePaddle/PaddleOCR/blob/develop/doc/doc_en/whl_en.md#use-custom-model)
 
-### Save
+### Export Label Result
 
-PPOCRLabel supports three ways to save Label.txt
+PPOCRLabel supports three ways to export Label.txt
 
-- Automatically save: After selecting "File-Automatically save marking results", the program will automatically write the annotations into Label.txt every time the user confirms an image. If this option is not turned on, it will be automatically saved after detecting that the user has manually checked 5 images.
-- Manual save: Click "File-Save Marking Results" to manually save the label.
-- Close application save
+- Automatically export: After selecting "File - Auto Export Label Mode", the program will automatically write the annotations into Label.txt every time the user confirms an image. If this option is not turned on, it will be automatically exported after detecting that the user has manually checked 5 images.
+- Manual export: Click "File-Export Marking Results" to manually export the label.
+- Close application export
 
 
-### Export partial recognition results
+### Export Partial Recognition Results
 
 For some data that are difficult to recognize, the recognition results will not be exported by **unchecking** the corresponding tags in the recognition results checkbox.
 
@@ -163,11 +199,11 @@ For some data that are difficult to recognize, the recognition results will not 
     ```
     pyrcc5 -o libs/resources.py resources.qrc
     ```
-- If you get an error ``` module 'cv2' has no attribute 'INTER_NEAREST'```, you need to delete all opencv related packages first, and then reinstall the headless version of opencv
+- If you get an error ``` module 'cv2' has no attribute 'INTER_NEAREST'```, you need to delete all opencv related packages first, and then reinstall the 4.2.0.32  version of headless opencv
     ```
-    pip install opencv-contrib-python-headless
+    pip install opencv-contrib-python-headless==4.2.0.32
     ```
-    
+
 ### Related
 
 1.[Tzutalin. LabelImg. Git code (2015)](https://github.com/tzutalin/labelImg)
