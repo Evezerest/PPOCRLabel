@@ -233,7 +233,7 @@ class Canvas(QWidget):
                 self.hVertex, self.hShape = index, shape
                 shape.highlightVertex(index, shape.MOVE_VERTEX)
                 self.overrideCursor(CURSOR_POINT)
-                self.setToolTip("Click & drag to move point")
+                self.setToolTip("Click & drag to move point") #move point
                 self.setStatusTip(self.toolTip())
                 self.update()
                 break
@@ -272,6 +272,14 @@ class Canvas(QWidget):
                         assert len(self.current.points) == 1
                         self.current.points = self.line.points
                         self.finalise()
+
+                    if self.canCloseShape() and len(self.current) > 3 and self.current[0].x() + 2 >= pos.x() >= \
+                            self.current[0].x() - 2 and self.current[0].y() + 2 >= pos.y() >= self.current[0].y() - 2:
+                        print('鼠标单击事件')
+                        if len(self.current) > 4:
+                            self.current.popPoint() # Eliminate the extra point from the last click.
+                        self.finalise()
+
                 elif not self.outOfPixmap(pos):
                     # Create new shape.
                     self.current = Shape()
@@ -395,7 +403,7 @@ class Canvas(QWidget):
     def mouseDoubleClickEvent(self, ev):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
-        if self.canCloseShape() and len(self.current) == 4:
+        if self.canCloseShape() and len(self.current) > 3:
             if not self.fourpoint:
                 self.current.popPoint()
             self.finalise()
@@ -488,6 +496,7 @@ class Canvas(QWidget):
             shape.moveVertexBy(lindex, lshift)
 
         else:
+            #move point
             shape.moveVertexBy(index, shiftPos)
 
 
@@ -650,7 +659,7 @@ class Canvas(QWidget):
 
     def finalise(self):
         assert self.current
-        if self.current.points[0] == self.current.points[-1]:
+        if len(self.current) < 4 and self.current.points[0] == self.current.points[-1]:
             # print('finalse')
             self.current = None
             self.drawingPolygon.emit(False)
@@ -764,7 +773,7 @@ class Canvas(QWidget):
         points = [p1+p2 for p1, p2 in zip(self.selectedShape.points, [step]*4)]
         return True in map(self.outOfPixmap, points)
 
-    def setLastLabel(self, text, line_color  = None, fill_color = None):
+    def setLastLabel(self, text, line_color=None, fill_color=None):
         assert text
         self.shapes[-1].label = text
         if line_color:

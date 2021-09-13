@@ -1866,6 +1866,37 @@ class MainWindow(QMainWindow, WindowMixin):
         self.setDirty()
         self.saveCacheLabel()
 
+    def gen_quad_from_poly(self, poly):
+        """
+        Generate min area quad from poly.
+        """
+        point_num = poly.shape[0]
+        min_area_quad = np.zeros ((4, 2), dtype=np.float32)
+        rect = cv2.minAreaRect (poly.astype (
+            np.int32))  # (center (x,y), (width, height), angle of rotation)
+        box = np.array (cv2.boxPoints (rect))
+
+        first_point_idx = 0
+        min_dist = 1e4
+        for i in range (4):
+            dist = np.linalg.norm (box[(i + 0) % 4] - poly[0]) + \
+                   np.linalg.norm (box[(i + 1) % 4] - poly[point_num // 2 - 1]) + \
+                   np.linalg.norm (box[(i + 2) % 4] - poly[point_num // 2]) + \
+                   np.linalg.norm (box[(i + 3) % 4] - poly[-1])
+            if dist < min_dist:
+                min_dist = dist
+                first_point_idx = i
+        for i in range(4):
+            min_area_quad[i] = box[(first_point_idx + i) % 4]
+
+        bbox_new = min_area_quad.tolist()
+        bbox = []
+
+        for box in bbox_new:
+            box = list(map(int, box))
+            bbox.append(box)
+
+        return bbox
 
     def reRecognition(self):
         img = cv2.imread(self.filePath)
@@ -1875,8 +1906,17 @@ class MainWindow(QMainWindow, WindowMixin):
             rec_flag = 0
             for shape in self.canvas.shapes:
                 box = [[int(p.x()), int(p.y())] for p in shape.points]
-                assert len(box) == 4
+                temp = 0
+                if len(box) > 4:
+                    temp = box
+                    box = np.array(box)
+                    box = self.gen_quad_from_poly(box)
+
+                assert len(box) >= 4
                 img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+                if not temp == 0:
+                    box = temp
+
                 if img_crop is None:
                     msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                     QMessageBox.information(self, "Information", msg)
@@ -1910,8 +1950,17 @@ class MainWindow(QMainWindow, WindowMixin):
         img = cv2.imread(self.filePath)
         for shape in self.canvas.selectedShapes:
             box = [[int(p.x()), int(p.y())] for p in shape.points]
-            assert len(box) == 4
+            temp = 0
+            if len(box) > 4:
+                temp = box
+                box = np.array(box)
+                box = self.gen_quad_from_poly(box)
+
+            assert len(box) >= 4
             img_crop = get_rotate_crop_image(img, np.array(box, np.float32))
+            if not temp == 0:
+                box = temp
+
             if img_crop is None:
                 msg = 'Can not recognise the detection box in ' + self.filePath + '. Please change manually'
                 QMessageBox.information(self, "Information", msg)
