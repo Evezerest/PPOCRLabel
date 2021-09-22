@@ -77,7 +77,7 @@ class Shape(object):
         self._closed = True
 
     def reachMaxPoints(self):
-        if len(self.points) >= 4:
+        if len(self.points) >= 65535:
             return True
         return False
 
