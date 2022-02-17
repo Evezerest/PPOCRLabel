@@ -395,7 +395,7 @@ class Canvas(QWidget):
     def mouseDoubleClickEvent(self, ev):
         # We need at least 4 points here, since the mousePress handler
         # adds an extra one before this handler is called.
-        if self.canCloseShape() and len(self.current) == 4:
+        if self.canCloseShape() and len(self.current) > 3:
             if not self.fourpoint:
                 self.current.popPoint()
             self.finalise()
@@ -704,8 +704,9 @@ class Canvas(QWidget):
 
     def keyPressEvent(self, ev):
         key = ev.key()
-        shapesBackup = []
         shapesBackup = copy.deepcopy(self.shapes)
+        if len(shapesBackup) == 0:
+            return
         self.shapesBackups.pop()
         self.shapesBackups.append(shapesBackup)
         if key == Qt.Key_Escape and self.current:

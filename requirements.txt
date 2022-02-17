@@ -1,2 +1,2 @@
-paddleocr
 pyqt5
+paddleocr
