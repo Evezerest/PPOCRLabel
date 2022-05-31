@@ -11,27 +11,19 @@
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-try:
-    from PyQt5.QtGui import *
-    from PyQt5.QtCore import *
-    from PyQt5.QtWidgets import *
-except ImportError:
-    from PyQt4.QtGui import *
-    from PyQt4.QtCore import *
+import copy
 
-#from PyQt4.QtOpenGL import *
-
+from PyQt5.QtCore import Qt, pyqtSignal, QPointF, QPoint
+from PyQt5.QtGui import QPainter, QBrush, QColor, QPixmap
+from PyQt5.QtWidgets import QWidget, QMenu, QApplication
 from libs.shape import Shape
 from libs.utils import distance
-import copy
 
 CURSOR_DEFAULT = Qt.ArrowCursor
 CURSOR_POINT = Qt.PointingHandCursor
 CURSOR_DRAW = Qt.CrossCursor
 CURSOR_MOVE = Qt.ClosedHandCursor
 CURSOR_GRAB = Qt.OpenHandCursor
-
-# class Canvas(QGLWidget):
 
 
 class Canvas(QWidget):
@@ -87,6 +79,10 @@ class Canvas(QWidget):
         #initialisation for panning
         self.pan_initial_pos = QPoint()
 
+        #lockedshapes related 
+        self.lockedShapes = []
+        self.isInTheSameImage = False
+
     def setDrawingColor(self, qColor):
         self.drawingLineColor = qColor
         self.drawingRectColor = qColor
@@ -124,7 +120,6 @@ class Canvas(QWidget):
 
     def selectedVertex(self):
         return self.hVertex is not None
-
 
     def mouseMoveEvent(self, ev):
         """Update line with last point and current coordinates."""
@@ -233,7 +228,7 @@ class Canvas(QWidget):
                 self.hVertex, self.hShape = index, shape
                 shape.highlightVertex(index, shape.MOVE_VERTEX)
                 self.overrideCursor(CURSOR_POINT)
-                self.setToolTip("Click & drag to move point") #move point
+                self.setToolTip("Click & drag to move point")
                 self.setStatusTip(self.toolTip())
                 self.update()
                 break
@@ -268,18 +263,10 @@ class Canvas(QWidget):
                         if self.current.isClosed():
                             # print('1111')
                             self.finalise()
-                    elif self.drawSquare: # 增加
+                    elif self.drawSquare:
                         assert len(self.current.points) == 1
                         self.current.points = self.line.points
                         self.finalise()
-
-                    if self.canCloseShape() and len(self.current) > 3 and self.current[0].x() + 2 >= pos.x() >= \
-                            self.current[0].x() - 2 and self.current[0].y() + 2 >= pos.y() >= self.current[0].y() - 2:
-                        print('鼠标单击事件')
-                        if len(self.current) > 4:
-                            self.current.popPoint() # Eliminate the extra point from the last click.
-                        self.finalise()
-
                 elif not self.outOfPixmap(pos):
                     # Create new shape.
                     self.current = Shape()
@@ -336,7 +323,6 @@ class Canvas(QWidget):
                  self.shapeMoved.emit() # connect to updateBoxlist in PPOCRLabel.py
 
              self.movingShape = False
-
 
     def endMove(self, copy=False):
         assert self.selectedShapes and self.selectedShapesCopy
@@ -413,7 +399,6 @@ class Canvas(QWidget):
         self.setHiding()
         self.selectionChanged.emit(shapes)
         self.update()
-
 
     def selectShapePoint(self, point, multiple_selection_mode):
         """Select the first shape created which contains this point."""
@@ -496,9 +481,7 @@ class Canvas(QWidget):
             shape.moveVertexBy(lindex, lshift)
 
         else:
-            #move point
             shape.moveVertexBy(index, shiftPos)
-
 
     def boundedMoveShape(self, shapes, pos):
         if type(shapes).__name__ != 'list': shapes = [shapes]
@@ -520,6 +503,7 @@ class Canvas(QWidget):
         if dp:
             for shape in shapes:
                 shape.moveBy(dp)
+                shape.close()
             self.prevPoint = pos
             return True
         return False
@@ -562,7 +546,7 @@ class Canvas(QWidget):
         # Give up if both fail.
         for shape in shapes:
             point = shape[0]
-            offset = QPointF(2.0, 2.0)
+            offset = QPointF(5.0, 5.0)
             self.calculateOffsets(shape, point)
             self.prevPoint = point
             if not self.boundedMoveShape(shape, point - offset):
@@ -659,7 +643,7 @@ class Canvas(QWidget):
 
     def finalise(self):
         assert self.current
-        if len(self.current) < 4 and self.current.points[0] == self.current.points[-1]:
+        if self.current.points[0] == self.current.points[-1]:
             # print('finalse')
             self.current = None
             self.drawingPolygon.emit(False)
@@ -713,8 +697,9 @@ class Canvas(QWidget):
 
     def keyPressEvent(self, ev):
         key = ev.key()
-        shapesBackup = []
         shapesBackup = copy.deepcopy(self.shapes)
+        if len(shapesBackup) == 0:
+            return
         self.shapesBackups.pop()
         self.shapesBackups.append(shapesBackup)
         if key == Qt.Key_Escape and self.current:
@@ -732,6 +717,31 @@ class Canvas(QWidget):
              self.moveOnePixel('Up')
         elif key == Qt.Key_Down and self.selectedShapes:
              self.moveOnePixel('Down')
+        elif key == Qt.Key_X and self.selectedShapes:
+            for i in range(len(self.selectedShapes)):
+                self.selectedShape = self.selectedShapes[i]
+                if self.rotateOutOfBound(0.01):
+                    continue
+                self.selectedShape.rotate(0.01)
+            self.shapeMoved.emit()
+            self.update()
+
+        elif key == Qt.Key_C and self.selectedShapes:
+            for i in range(len(self.selectedShapes)):
+                self.selectedShape = self.selectedShapes[i]
+                if self.rotateOutOfBound(-0.01):
+                    continue
+                self.selectedShape.rotate(-0.01)
+            self.shapeMoved.emit()
+            self.update()
+
+    def rotateOutOfBound(self, angle):
+        for shape in range(len(self.selectedShapes)):
+            self.selectedShape = self.selectedShapes[shape]
+            for i, p in enumerate(self.selectedShape.points):
+                if self.outOfPixmap(self.selectedShape.rotatePoint(p, angle)):
+                    return True
+            return False
 
     def moveOnePixel(self, direction):
         # print(self.selectedShape.points)
@@ -773,7 +783,7 @@ class Canvas(QWidget):
         points = [p1+p2 for p1, p2 in zip(self.selectedShape.points, [step]*4)]
         return True in map(self.outOfPixmap, points)
 
-    def setLastLabel(self, text, line_color=None, fill_color=None):
+    def setLastLabel(self, text, line_color=None, fill_color=None, key_cls=None):
         assert text
         self.shapes[-1].label = text
         if line_color:
@@ -781,6 +791,10 @@ class Canvas(QWidget):
 
         if fill_color:
             self.shapes[-1].fill_color = fill_color
+
+        if key_cls:
+            self.shapes[-1].key_cls = key_cls
+
         self.storeShapes()
 
         return self.shapes[-1]
